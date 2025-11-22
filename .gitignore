@@ -1,0 +1,16 @@
+node_modules/
+package-lock.json
+.env
+.env.local
+auth_info/
+*.data.json
+*.session.json
+logs/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+.pm2/
+config.local.js
