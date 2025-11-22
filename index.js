@@ -1,0 +1,142 @@
+const {
+    default: makeWASocket,
+    DisconnectReason,
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    Browsers
+} = require('@whiskeysockets/baileys');
+const pino = require('pino');
+const fs = require('fs');
+const path = require('path');
+
+// Import modules
+const CONFIG = require('./config');
+const commands = require('./commands');
+const { initializeBot } = require('./utils/bot-manager');
+const { handleMessage } = require('./utils/message-handler');
+const { handleConnection } = require('./utils/connection-handler');
+
+// ============================================
+// GLOBAL STATE - PROPERLY INITIALIZED
+// ============================================
+const messageQueue = new Map();
+const statusViewed = new Set();
+const welcomedUsers = new Set();
+
+// Export each individually for proper destructuring
+module.exports = { messageQueue, statusViewed, welcomedUsers };
+
+async function connectToWhatsApp() {
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+        const { version } = await fetchLatestBaileysVersion();
+        
+        const sock = makeWASocket({
+            version,
+            auth: { 
+                creds: state.creds, 
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })) 
+            },
+            printQRInTerminal: false,
+            logger: pino({ level: 'silent' }),
+            browser: Browsers.ubuntu('Chrome'),
+            markOnlineOnConnect: CONFIG.alwaysOnline,
+            getMessage: async (key) => {
+                try {
+                    return messageQueue.has(key.id) 
+                        ? messageQueue.get(key.id).message 
+                        : { conversation: '' };
+                } catch { 
+                    return { conversation: '' }; 
+                }
+            },
+            syncFullHistory: false,
+            retryRequestDelayMs: 250,
+            maxMsgRetryCount: 3,
+            defaultQueryTimeoutMs: 60000,
+            connectTimeoutMs: 90000,
+            keepAliveIntervalMs: 30000,
+            shouldIgnoreJid: jid => jid === 'status@broadcast',
+            generateHighQualityLinkPreview: false
+        });
+
+        // Save credentials on update
+        sock.ev.on('creds.update', saveCreds);
+        
+        // Handle connection updates
+        sock.ev.on('connection.update', (update) => 
+            handleConnection(update, sock, connectToWhatsApp, CONFIG)
+        );
+        
+        // Handle incoming messages
+        sock.ev.on('messages.upsert', ({ messages }) => 
+            handleMessage(messages, sock, CONFIG, commands)
+        );
+
+    } catch (error) {
+        console.error('❌ Connection error:', error.message);
+        console.log('⏳ Waiting 10 seconds before reconnecting...\n');
+        setTimeout(connectToWhatsApp, 10000);
+    }
+}
+
+// ============================================
+// ERROR HANDLERS
+// ============================================
+process.on('uncaughtException', (error) => {
+    if (CONFIG.logErrors) {
+        console.error('⚠️  Uncaught Exception:', error.message);
+        if (error.stack) {
+            console.error('Stack:', error.stack.split('\n').slice(0, 3).join('\n'));
+        }
+    }
+});
+
+process.on('unhandledRejection', (error) => {
+    if (CONFIG.logErrors) {
+        console.error('⚠️  Unhandled Rejection:', error.message);
+    }
+});
+
+process.on('SIGINT', () => {
+    console.log('\n👋 Shutting down gracefully...');
+    console.log('💾 Session saved');
+    console.log('✅ Goodbye!');
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('\n👋 Received SIGTERM signal');
+    console.log('💾 Session saved');
+    console.log('✅ Goodbye!');
+    process.exit(0);
+});
+
+// ============================================
+// STARTUP
+// ============================================
+initializeBot();
+
+console.log('📋 Bot Configuration:');
+console.log(`   • Name: ${CONFIG.botName}`);
+console.log(`   • Version: ${CONFIG.version}`);
+console.log(`   • Mode: ${CONFIG.botMode?.toUpperCase() || 'PUBLIC'}`);
+console.log(`   • Admins: ${CONFIG.admins.length}`);
+console.log(`   • Owner: ${CONFIG.ownerNumber || 'Not set'}`);
+console.log(`   • Always Online: ${CONFIG.alwaysOnline ? '✓' : '✗'}`);
+console.log(`   • Auto View Status: ${CONFIG.autoViewStatus ? '✓' : '✗'}`);
+console.log(`   • Auto React: ${CONFIG.autoReact ? '✓' : '✗'}`);
+console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
+console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}\n`);
+
+const authPath = path.join(__dirname, 'auth_info_baileys');
+const credsPath = path.join(authPath, 'creds.json');
+
+if (fs.existsSync(credsPath)) {
+    console.log('🔐 Existing session found - reconnecting...\n');
+} else {
+    console.log('🆕 No session found - starting fresh...\n');
+}
+
+connectToWhatsApp();

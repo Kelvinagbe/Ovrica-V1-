@@ -1,0 +1,105 @@
+{
+
+  "name": "whatsapp-bot",
+
+  "version": "1.0.0",
+
+  "description": "WhatsApp bot using Baileys with auto-update feature",
+
+  "main": "index.js",
+
+  "scripts": {
+
+    "preinstall": "echo '📦 Installing dependencies...'",
+
+    "postinstall": "npm run setup",
+
+    "setup": "node -e \"const fs = require('fs'); const dirs = ['logs', 'auth_info']; dirs.forEach(dir => { if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); console.log('✅ Created ' + dir + ' directory'); } });\"",
+
+    "start": "node index.js",
+
+    "dev": "nodemon index.js",
+
+    "pm2:setup": "npm install && npm run setup && pm2 start ecosystem.config.js",
+
+    "pm2:start": "pm2 start ecosystem.config.js",
+
+    "pm2:stop": "pm2 stop whatsapp-bot",
+
+    "pm2:restart": "pm2 restart whatsapp-bot",
+
+    "pm2:reload": "pm2 reload whatsapp-bot",
+
+    "pm2:logs": "pm2 logs whatsapp-bot --lines 100",
+
+    "pm2:logs:error": "pm2 logs whatsapp-bot --err --lines 100",
+
+    "pm2:logs:flush": "pm2 flush whatsapp-bot",
+
+    "pm2:status": "pm2 status",
+
+    "pm2:monit": "pm2 monit",
+
+    "pm2:delete": "pm2 delete whatsapp-bot",
+
+    "pm2:save": "pm2 save",
+
+    "pm2:startup": "pm2 startup",
+
+    "pm2:resurrect": "pm2 resurrect",
+
+    "pm2:kill": "pm2 kill",
+
+    "update:check": "git fetch origin && git status",
+
+    "update:pull": "git pull origin && npm install",
+
+    "logs:view": "tail -f logs/combined.log",
+
+    "logs:error": "tail -f logs/error.log",
+
+    "logs:clear": "rm -rf logs/*.log && echo '✅ Logs cleared'"
+
+  },
+
+  "keywords": [
+
+    "whatsapp",
+
+    "bot",
+
+    "baileys",
+
+    "auto-update"
+
+  ],
+
+  "author": "Kelvin",
+
+  "license": "ISC",
+
+  "dependencies": {
+
+    "@whiskeysockets/baileys": "^6.7.9",
+
+    "pino": "^8.19.0",
+
+    "qrcode-terminal": "^0.12.0"
+
+  },
+
+  "devDependencies": {
+
+    "nodemon": "^3.0.1"
+
+  },
+
+  "engines": {
+
+    "node": ">=16.0.0",
+
+    "npm": ">=8.0.0"
+
+  }
+
+}
