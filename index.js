@@ -1,4 +1,4 @@
-const {
+ const {
     default: makeWASocket,
     DisconnectReason,
     useMultiFileAuthState,
