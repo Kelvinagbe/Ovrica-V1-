@@ -110,7 +110,7 @@ const templates = {
                 title: '𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨',
                 items: [
                     '/tagall',
-                    '/hidetag',
+                    '/hidetag'
                 ]
             },
             {
@@ -130,7 +130,7 @@ const templates = {
                 title: '𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨',
                 items: [
                     '/sticker',
-                   '/take',
+                   '/take'
                 ]
             },
             {
