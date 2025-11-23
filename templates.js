@@ -1,1066 +1,413 @@
-// templates.js - Professional message templates with optimized design
+// templates.js - OVRICA-V1 Professional Message Templates
 
 const getServerStatus = () => {
-
     const uptime = process.uptime();
-
     const days = Math.floor(uptime / 86400);
-
     const hours = Math.floor((uptime % 86400) / 3600);
-
     const minutes = Math.floor((uptime % 3600) / 60);
-
     
-
     return {
-
         uptime: `${days}d ${hours}h ${minutes}m`,
-
-        status: '✅ Online',
-
+        status: '✅ *Online*',
         timestamp: new Date().toLocaleString(),
-
         memory: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB`
-
     };
-
 };
 
-const footer = '\n> Powered by 🎭Kelvin🎭';
-
-// Reusable design components
-
 const design = {
-
-    // Creates the top header with bot info (for menu only)
-
+    // Premium header
     topHeader: (botInfo) => {
-
         const status = getServerStatus();
-
-        return `┌ ❏ *⌜ ${botInfo.name || 'OVRICA-V1'} ⌟* ❏ 
-
-│
-
-├◆ ᴏᴡɴᴇʀ: ${botInfo.owner || 'KELVIN AGBE'}
-
-├◆ ᴘʀᴇғɪx: ${botInfo.prefix || '.'}
-
-├◆ ᴜsᴇʀ: ${botInfo.user || 'User'}
-
-├◆ ᴘʟᴀɴ: ${botInfo.plan || 'Free User'}
-
-├◆ ᴠᴇʀsɪᴏɴ: ${botInfo.version || '1.0.0'}
-
-├◆ ᴛɪᴍᴇ: ${new Date().toLocaleTimeString('en-US', { timeZone: botInfo.timezone || 'Africa/Lagos' })} (${botInfo.timezone || 'Africa/Lagos'})
-
-├◆ ᴜᴘᴛɪᴍᴇ: ${status.uptime}
-
-├◆ ᴄᴏᴍᴍᴀɴᴅs: ${botInfo.commandCount || '0'}
-
-├◆ ᴛᴏᴅᴀʏ: ${new Date().toLocaleDateString('en-US', { weekday: 'long' })}
-
-├◆ ᴅᴀᴛᴇ: ${new Date().toLocaleDateString('en-GB')}
-
-├◆ ᴘʟᴀᴛғᴏʀᴍ: ${botInfo.platform || 'LINUX'}
-
-├◆ ʀᴜɴᴛɪᴍᴇ: ${botInfo.runtime || process.version}
-
-├◆ ᴄᴘᴜ: ${botInfo.cpu || 'N/A'}
-
-├◆ ʀᴀᴍ: ${status.memory} / ${botInfo.totalRam || '32050MB'} (${((parseFloat(status.memory) / parseFloat(botInfo.totalRam || '32050')) * 100).toFixed(1)}%)
-
-├◆ ᴍᴏᴅᴇ: ${botInfo.mode || 'Public'}
-
-├◆ ᴍᴏᴏᴅ: ${botInfo.mood || '🌙'}
-
-└ ◆`;
-
+        return `╔══[❏ *𝗢𝗩𝗥𝗜𝗖𝗔 𝗩𝟭* ❏]══╗
+║➲ *𝗡𝗔𝗠𝗘:* ${botInfo.name || 'OVRICA-V1'}
+║➲ *𝗢𝗪𝗡𝗘𝗥:* ${botInfo.owner || 'KELVIN AGBE'}
+║➲ *𝗩𝗘𝗥𝗦𝗜𝗢𝗡:* ${botInfo.version || 'v1.0.0'}
+║➲ *𝗣𝗥𝗘𝗙𝗜𝗫:* ${botInfo.prefix || '/'}
+║➲ *𝗨𝗣𝗧𝗜𝗠𝗘:* ${status.uptime}
+║➲ *𝗠𝗘𝗠𝗢𝗥𝗬:* ${status.memory}
+╚═══════════════╝`;
     },
 
-    
+    // Section header
+    sectionHeader: (title) => {
+        return `╔══[❏ *${title}* ❏]══╗`;
+    },
 
-    // Simple header for other commands
+    // Command item (NOT bold)
+    commandItem: (command) => {
+        return `║➲ ${command}`;
+    },
 
-    simpleHeader: (title) => `┌ ❏ *⌜ ${title} ⌟* ❏`,
+    // Info item (bold label, normal value)
+    infoItem: (label, value) => {
+        return `║➲ *${label}* ${value}`;
+    },
 
-    
+    // Section footer
+    sectionFooter: () => {
+        return `╚═══════════════╝`;
+    },
 
-    // Creates a section header
-
-    section: (title) => `┌ ❏ ◆ *⌜${title}⌟* ◆\n│`,
-
-    
-
-    // Creates a command item
-
-    item: (command) => `├◆ ${command}`,
-
-    
-
-    // Closes a section
-
-    footer: () => `│\n└ ❏`,
-
-    
-
-    // Info line for status displays
-
-    info: (label, value) => `├◆ ${label}: ${value}`,
-
-    
-
-    // Simple separator
-
-    separator: () => `│`,
-
-    
-
-    // Build complete menu from sections (with full header)
-
-    buildMenu: (topInfo, sections) => {
-
-        let menu = design.topHeader(topInfo);
-
+    // Build menu from sections
+    buildMenu: (botInfo, sections) => {
+        let menu = design.topHeader(botInfo);
         
-
         sections.forEach(section => {
-
-            menu += '\n' + design.section(section.title);
-
+            menu += '\n\n' + design.sectionHeader(section.title);
             section.items.forEach(item => {
-
-                menu += '\n' + design.item(item);
-
+                menu += '\n' + design.commandItem(item);
             });
-
-            menu += '\n' + design.footer();
-
+            menu += '\n' + design.sectionFooter();
         });
-
         
-
-        return menu + footer;
-
+        return menu;
     },
 
-    
-
-    // Build simple display (without full header)
-
-    buildSimple: (title, sections) => {
-
-        let display = design.simpleHeader(title);
-
+    // Build info display
+    buildInfo: (title, infoSections) => {
+        let display = design.sectionHeader(title);
         
-
-        sections.forEach(section => {
-
-            display += '\n' + design.section(section.title);
-
-            section.items.forEach(item => {
-
-                display += '\n' + design.item(item);
-
-            });
-
-            display += '\n' + design.footer();
-
-        });
-
-        
-
-        return display + footer;
-
-    },
-
-    
-
-    // Build info display (without full header)
-
-    buildInfoSimple: (title, infoSections) => {
-
-        let info = design.simpleHeader(title);
-
-        
-
         infoSections.forEach(section => {
-
-            info += '\n' + design.section(section.title);
-
+            display += '\n║\n║➲ *—— ' + section.title + ' ——*';
             section.items.forEach(item => {
-
-                info += '\n' + design.info(item.label, item.value);
-
+                display += '\n' + design.infoItem(item.label, item.value);
             });
-
-            info += '\n' + design.footer();
-
         });
-
         
-
-        return info + footer;
-
+        display += '\n' + design.sectionFooter();
+        return display;
     }
-
 };
 
 const templates = {
-
+    // Welcome message
     welcome: (name, botInfo = {}) => {
-
         const sections = [
-
             {
-
-                title: 'WELCOME MESSAGE',
-
+                title: '𝗪𝗘𝗟𝗖𝗢𝗠𝗘',
                 items: [
-
-                    `👋 Welcome ${name}!`,
-
-                    '🤖 WhatsApp Bot Assistant',
-
-                    '✨ Type /menu to get started'
-
+                    '🎯 *Hello* ' + name,
+                    '🤖 *WhatsApp Bot Assistant*',
+                    '⚡ *Type /menu to get started*'
                 ]
-
             },
-
             {
-
-                title: 'QUICK ACCESS',
-
+                title: '𝗤𝗨𝗜𝗖𝗞 𝗦𝗧𝗔𝗥𝗧',
                 items: [
-
-                    '/menu - Main menu',
-
-                    '/help - Command guide',
-
-                    '/features - Bot features',
-
-                    '/ping - Test bot'
-
+                    '/menu',
+                    '/help',
+                    '/ping'
                 ]
-
             }
-
         ];
-
-        
-
         return design.buildMenu(botInfo, sections);
-
     },
 
+    // Main menu
     menu: (botInfo = {}) => {
-
         const sections = [
-
             {
-
-                title: 'GENERAL COMMANDS',
-
+                title: '𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨',
                 items: [
-
-                    '/menu - Display main menu',
-
-                    '/help - Show all commands',
-
-                    '/info - Bot information',
-
-                    '/ping - Test response',
-
-                    '/time - Server time',
-
-                    '/features - Active features',
-
-                    '/settings - View config'
-
+                    '/ban',
+                    '/unban',
+                    '/promote',
+                    '/demote',
+                    '/mute',
+                    '/unmute',
+                    '/kick',
+                    '/kickall',
+                    '/add',
+                    '/slowmode',
+                    '/lockgroup',
+                    '/unlockgroup',
+                    '/setname',
+                    '/setdesc',
+                    '/revoke',
+                    '/resetlink',
+                    '/creategc',
+                    '/leavegc',
+                    '/welcome',
+                    '/goodbye'
                 ]
-
-            },
-
-            {
-
-                title: 'GROUP COMMANDS',
-
-                items: [
-
-                    '/tagall - Tag all members',
-
-                    '/hidetag <message> - Hidden tag all',
-                    
-
-                    '/userinfo - get user information'
-
-                ]
-
-            },
-
-            {
-
-                title: 'BOT CONTROLS',
-
-                items: [
-
-                    '/autotyping <on/off> - Toggle typing',
-
-                    '/alwaysonline <on/off> - Toggle online',
-
-                    '/statusview <on/off> - Toggle status view',
-
-                    '/autoreact <on/off> - Toggle reactions'
-
-                ]
-
             },
             {
-
-    title: 'VIEW ONCE & MEDIA',
-
-    items: [
-
-        '/vv - Reveal view once (reply to message)',
-
-        '/pp - Get profile picture (reply/mention)',
-
-        '/getpfp - Get profile picture (detailed)',
-
-        '/steal - Steal profile picture'
-
-    ]
-
-},
-
-            {
-                title: 'FUN & TOOLS',
-
+                title: '𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗥 𝗠𝗘𝗡𝗨',
                 items: [
-
-                    '/echo <text> - Echo message',
-
-                    '/reverse <text> - Reverse text',
-
-                    '/count <text> - Word counter'
-
+                    '/play',
+                    '/song',
+                    '/music',
+                    '/video',
+                    '/instagram',
+                    '/facebook',
+                    '/tiktok',
+                    '/youtube'
                 ]
-
             },
-
             {
-
-                title: 'MEDIA TOOLS',
-
+                title: '𝗙𝗨𝗡 𝗠𝗘𝗡𝗨',
                 items: [
-
-                    '/sticker - Convert image to sticker',
-
-                    '/toimage - Convert sticker to image'
-
+                    '/dice',
+                    '/coin',
+                    '/joke',
+                    '/riddle',
+                    '/roast',
+                    '/8ball',
+                    '/truth',
+                    '/dare'
                 ]
-
             },
-
             {
-
-                title: 'ADMIN ONLY',
-
+                title: '𝗧𝗘𝗫𝗧 𝗧𝗢𝗢𝗟𝗦',
                 items: [
-
-                    '/broadcast <msg> - Mass send',
-
-                    '/admins - View admin list',
-
-                    '/stats - Detailed statistics'
-
+                    '/count',
+                    '/reverse',
+                    '/case',
+                    '/palindrome',
+                    '/tts',
+                    '/attp',
+                    '/lyrics'
                 ]
-
+            },
+            {
+                title: '𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨',
+                items: [
+                    '/sticker',
+                    '/blur',
+                    '/meme',
+                    '/emojimix',
+                    '/take',
+                    '/simage'
+                ]
+            },
+            {
+                title: '𝗔𝗜 𝗠𝗘𝗡𝗨',
+                items: [
+                    '/gpt',
+                    '/gemini',
+                    '/imagine',
+                    '/dalle',
+                    '/flux'
+                ]
+            },
+            {
+                title: '𝗣𝗢𝗪𝗘𝗥 𝗠𝗘𝗡𝗨',
+                items: [
+                    '/save',
+                    '/vv',
+                    '/tourl',
+                    '/delete',
+                    '/block',
+                    '/unblock',
+                    '/pair',
+                    '/warnings'
+                ]
+            },
+            {
+                title: '𝗢𝗧𝗛𝗘𝗥',
+                items: [
+                    '/ping',
+                    '/alive',
+                    '/uptime',
+                    '/owner',
+                    '/weather',
+                    '/groupinfo',
+                    '/admins'
+                ]
             }
-
         ];
-
-        
-
         return design.buildMenu(botInfo, sections);
-
     },
 
+    // Help command
     help: (isAdmin, botInfo = {}) => {
-
         const sections = [
-
             {
-
-                title: 'GENERAL COMMANDS',
-
+                title: '𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗜𝗡𝗙𝗢',
                 items: [
-
-                    '/menu - Display main menu',
-
-                    '/help - Show this guide',
-
-                    '/info - Bot information',
-
-                    '/ping - Check bot status',
-
-                    '/time - Server time',
-
-                    '/features - Active features',
-
-                    '/settings - View config'
-
+                    '/menu - *Main menu*',
+                    '/help - *Command guide*',
+                    '/ping - *Test bot*',
+                    '/info - *Bot information*'
                 ]
-
             },
-
             {
-
-                title: 'FUN COMMANDS',
-
+                title: '𝗚𝗥𝗢𝗨𝗣 𝗧𝗬𝗣𝗘𝗦',
                 items: [
-
-                    '/echo <text> - Echo your message',
-
-                    '/reverse <text> - Reverse text',
-
-                    '/count <text> - Word counter'
-
+                    '/ban *reply/mention*',
+                    '/promote *reply/mention*',
+                    '/kick *reply/mention*'
                 ]
-
-            },
-
-            {
-
-                title: 'MEDIA TOOLS',
-
-                items: [
-
-                    '/sticker - Convert image',
-
-                    '  └ Reply to image with /sticker',
-
-                    '/toimage - Convert sticker',
-
-                    '  └ Reply to sticker with /toimage'
-
-                ]
-
             }
-
         ];
-
         
-
         if (isAdmin) {
-
             sections.push({
-
-                title: 'ADMIN COMMANDS',
-
+                title: '𝗔𝗗𝗠𝗜𝗡 𝗢𝗡𝗘𝗟𝗬',
                 items: [
-
-                    '/broadcast <message> - Send to all chats',
-
-                    '/admins - View admin list',
-
-                    '/stats - Detailed statistics'
-
+                    '/broadcast *message*',
+                    '/stats',
+                    '/admins'
                 ]
-
             });
-
         }
-
         
-
-        return design.buildSimple('COMMAND GUIDE', sections);
-
+        return design.buildMenu(botInfo, sections);
     },
 
-    features: (config, botInfo = {}) => {
-
+    // Bot info
+    info: (uptime, memory, chats, botInfo = {}) => {
         const infoSections = [
-
             {
-
-                title: 'AUTOMATION STATUS',
-
+                title: '𝗦𝗬𝗦𝗧𝗘𝗠 𝗜𝗡𝗙𝗢',
                 items: [
-
-                    { label: 'Auto Typing', value: config.autoTyping ? '✅ Active' : '❌ Inactive' },
-
-                    { label: 'Auto React', value: config.autoReact ? '✅ Active' : '❌ Inactive' },
-
-                    { label: 'Auto Status View', value: config.autoViewStatus ? '✅ Active' : '❌ Inactive' },
-
-                    { label: 'Always Online', value: config.alwaysOnline ? '✅ Active' : '❌ Inactive' }
-
+                    { label: '𝗦𝘁𝗮𝘁𝘂𝘀', value: '✅ Online' },
+                    { label: '𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺', value: 'WhatsApp Web' },
+                    { label: '𝗠𝗼𝗱𝗲', value: 'Multi-Device' }
                 ]
-
             },
-
             {
-
-                title: 'CAPABILITIES',
-
+                title: '𝗣𝗘𝗥𝗙𝗢𝗥𝗠𝗔𝗡𝗖𝗘',
                 items: [
-
-                    { label: '✅ Sticker Creation', value: 'Available' },
-
-                    { label: '✅ Media Conversion', value: 'Available' },
-
-                    { label: '✅ Text Processing', value: 'Available' },
-
-                    { label: '✅ Admin Management', value: 'Available' },
-
-                    { label: '✅ Broadcast System', value: 'Available' }
-
+                    { label: '⏱️ 𝗨𝗽𝘁𝗶𝗺𝗲', value: uptime },
+                    { label: '💾 𝗠𝗲𝗺𝗼𝗿𝘆', value: memory + 'MB' },
+                    { label: '⚡ 𝗦𝘁𝗮𝗯𝗶𝗹𝗶𝘁𝘆', value: '99.9%' }
                 ]
-
+            },
+            {
+                title: '𝗔𝗖𝗧𝗜𝗩𝗜𝗧𝗬',
+                items: [
+                    { label: '💬 𝗔𝗰𝘁𝗶𝘃𝗲 𝗖𝗵𝗮𝘁𝘀', value: chats },
+                    { label: '⚙️ 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀', value: '1000+' }
+                ]
             }
-
         ];
-
-        
-
-        return design.buildInfoSimple('BOT FEATURES', infoSections);
-
+        return design.buildInfo('𝗕𝗢𝗧 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡', infoSections);
     },
 
-    info: (uptime, memory, chats, isAdmin, adminCount, botInfo = {}) => {
-
-        const up = uptime;
-
-        const d = Math.floor(up / 86400);
-
-        const h = Math.floor((up % 86400) / 3600);
-
-        const min = Math.floor((up % 3600) / 60);
-
-        const uptimeStr = `${d}d ${h}h ${min}m`;
-
-        
-
-        const infoSections = [
-
-            {
-
-                title: 'SYSTEM INFO',
-
-                items: [
-
-                    { label: 'Status', value: '✅ Online' },
-
-                    { label: 'Version', value: botInfo.version || '1.0.0' },
-
-                    { label: 'Platform', value: 'WhatsApp Web' },
-
-                    { label: 'Mode', value: 'Multi-Device' }
-
-                ]
-
-            },
-
-            {
-
-                title: 'PERFORMANCE',
-
-                items: [
-
-                    { label: 'Uptime', value: uptimeStr },
-
-                    { label: 'Memory Usage', value: `${memory}MB` },
-
-                    { label: 'Response Time', value: '<100ms' },
-
-                    { label: 'Stability', value: '99.9%' }
-
-                ]
-
-            },
-
-            {
-
-                title: 'ACTIVITY',
-
-                items: [
-
-                    { label: 'Active Chats', value: chats },
-
-                    { label: 'Commands Served', value: '1000+' },
-
-                    ...(isAdmin ? [{ label: 'Total Admins', value: adminCount }] : []),
-
-                    { label: 'Messages Today', value: '500+' }
-
-                ]
-
-            }
-
-        ];
-
-        
-
-        return design.buildInfoSimple('BOT INFORMATION', infoSections);
-
-    },
-
-    settings: (config, botInfo = {}) => {
-
-        const infoSections = [
-
-            {
-
-                title: 'AUTOMATION SETTINGS',
-
-                items: [
-
-                    { label: 'Auto Typing', value: config.autoTyping ? '✅ Enabled' : '❌ Disabled' },
-
-                    { label: 'Auto React', value: config.autoReact ? '✅ Enabled' : '❌ Disabled' },
-
-                    { label: 'Auto Status View', value: config.autoViewStatus ? '✅ Enabled' : '❌ Disabled' },
-
-                    { label: 'Always Online', value: config.alwaysOnline ? '✅ Enabled' : '❌ Disabled' }
-
-                ]
-
-            },
-
-            {
-
-                title: 'ADMINISTRATION',
-
-                items: [
-
-                    { label: 'Registered Admins', value: config.admins.length },
-
-                    { label: 'Admin Commands', value: 'Active' },
-
-                    { label: 'Broadcast', value: 'Available' }
-
-                ]
-
-            }
-
-        ];
-
-        
-
-        return design.buildInfoSimple('CONFIGURATION', infoSections);
-
-    },
-
+    // Ping/Pong
     ping: (latency, botInfo = {}) => {
-
         const status = getServerStatus();
-
         const infoSections = [
-
             {
-
-                title: 'RESPONSE TEST',
-
+                title: '𝗥𝗘𝗦𝗣𝗢𝗡𝗦𝗘 𝗧𝗘𝗦𝗧',
                 items: [
-
-                    { label: 'Latency', value: `${latency}ms` },
-
-                    { label: 'Status', value: '✅ Online' },
-
-                    { label: 'Connection', value: 'Stable' },
-
-                    { label: 'Response', value: 'Excellent' }
-
+                    { label: '⚡ 𝗟𝗮𝘁𝗲𝗻𝗰𝘆', value: latency + 'ms' },
+                    { label: '✅ 𝗦𝘁𝗮𝘁𝘂𝘀', value: 'Online' },
+                    { label: '🔌 𝗖𝗼𝗻𝗻𝗲𝗰𝘁𝗶𝗼𝗻', value: 'Stable' }
                 ]
-
             },
-
             {
-
-                title: 'SERVER STATUS',
-
+                title: '𝗦𝗘𝗥𝗩𝗘𝗥 𝗦𝗧𝗔𝗧𝗨𝗦',
                 items: [
-
-                    { label: 'Status', value: status.status },
-
-                    { label: 'Uptime', value: status.uptime },
-
-                    { label: 'Memory', value: status.memory }
-
+                    { label: '📡 𝗦𝘁𝗮𝘁𝘂𝘀', value: status.status },
+                    { label: '⏱️ 𝗨𝗽𝘁𝗶𝗺𝗲', value: status.uptime },
+                    { label: '💾 𝗠𝗲𝗺𝗼𝗿𝘆', value: status.memory }
                 ]
-
             }
-
         ];
-
-        
-
-        return design.buildInfoSimple('PONG!', infoSections);
-
+        return design.buildInfo('𝗣𝗢𝗡𝗚!', infoSections);
     },
 
+    // Features
+    features: (config, botInfo = {}) => {
+        const infoSections = [
+            {
+                title: '𝗔𝗨𝗧𝗢𝗠𝗔𝗧𝗜𝗢𝗡',
+                items: [
+                    { label: '𝗧𝘆𝗽𝗶𝗻𝗴', value: config.autoTyping ? '✅ Active' : '❌ Inactive' },
+                    { label: '𝗥𝗲𝗮𝗰𝘁', value: config.autoReact ? '✅ Active' : '❌ Inactive' },
+                    { label: '𝗦𝘁𝗮𝘁𝘂𝘀 𝗩𝗶𝗲𝘄', value: config.autoViewStatus ? '✅ Active' : '❌ Inactive' }
+                ]
+            },
+            {
+                title: '𝗠𝗔𝗜𝗡 𝗣𝗥𝗢𝗠𝗣𝗘𝗧𝗦',
+                items: [
+                    { label: '✅ 𝗔𝗜 𝗘𝗻𝗴𝗶𝗻𝗲', value: 'Ready' },
+                    { label: '✅ 𝗦𝘁𝗶𝗰𝗸𝗲𝗿𝘀', value: 'Ready' },
+                    { label: '✅ 𝗗𝗼𝗪𝗻𝗹𝗼𝗮𝗱𝘀', value: 'Ready' }
+                ]
+            }
+        ];
+        return design.buildInfo('𝗕𝗢𝗧 𝗙𝗘𝗔𝗧𝗨𝗥𝗘𝗦', infoSections);
+    },
+
+    // Settings
+    settings: (config, botInfo = {}) => {
+        const infoSections = [
+            {
+                title: '𝗔𝗨𝗧𝗢𝗠𝗔𝗧𝗜𝗢𝗡',
+                items: [
+                    { label: '𝗧𝘆𝗽𝗶𝗻𝗴', value: config.autoTyping ? '✅ Enabled' : '❌ Disabled' },
+                    { label: '𝗥𝗲𝗮𝗰𝘁', value: config.autoReact ? '✅ Enabled' : '❌ Disabled' },
+                    { label: '𝗢𝗻𝗹𝗶𝗻𝗲', value: config.alwaysOnline ? '✅ Enabled' : '❌ Disabled' }
+                ]
+            },
+            {
+                title: '𝗔𝗗𝗠𝗜𝗡 𝗖𝗢𝗡𝗧𝗥𝗢𝗟',
+                items: [
+                    { label: '𝗥𝗲𝗴𝗶𝘀𝘁𝗲𝗿𝗲𝗱', value: config.admins.length + ' Admins' },
+                    { label: '𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁', value: 'Available' }
+                ]
+            }
+        ];
+        return design.buildInfo('𝗖𝗢𝗡𝗙𝗜𝗚𝗨𝗥𝗔𝗧𝗜𝗢𝗡', infoSections);
+    },
+
+    // Error
     error: (message, botInfo = {}) => {
-
-        const sections = [
-
-            {
-
-                title: 'ERROR',
-
-                items: [
-
-                    `❌ ${message}`,
-
-                    '',
-
-                    '💡 Suggestions:',
-
-                    '  • Check command syntax',
-
-                    '  • Use /help for guidance',
-
-                    '  • Contact admin if persists'
-
-                ]
-
-            }
-
-        ];
-
-        
-
-        return design.buildSimple('ERROR', sections);
-
+        return `╔══[❏ *𝗘𝗥𝗥𝗢𝗥* ❏]══╗
+║➲ *❌ ${message}*
+║
+║➲ *💡 𝗧𝗥𝗬:*
+║➲ • *𝗖𝗵𝗲𝗰𝗸 𝗦𝗬𝗡𝗧𝗔𝗫*
+║➲ • *𝗨𝘀𝗲 /help*
+║➲ • *𝗖𝗼𝗻𝘁𝗮𝗰𝘁 𝗔𝗱𝗺𝗶𝗻*
+╚═══════════════╝`;
     },
 
+    // Admin Only
     adminOnly: (botInfo = {}) => {
-
-        const sections = [
-
-            {
-
-                title: 'ACCESS DENIED',
-
-                items: [
-
-                    '⛔ Restricted Command',
-
-                    '',
-
-                    'This command is only available to',
-
-                    'bot administrators.',
-
-                    '',
-
-                    '👑 Admin Features:',
-
-                    '  • Broadcast messaging',
-
-                    '  • User management',
-
-                    '  • System statistics',
-
-                    '  • Advanced controls',
-
-                    '',
-
-                    '💬 Contact: wa.me/2348109860102'
-
-                ]
-
-            }
-
-        ];
-
-        
-
-        return design.buildSimple('ACCESS DENIED', sections);
-
+        return `╔══[❏ *𝗔𝗖𝗖𝗘𝗦𝘀 𝗗𝗘𝗡𝗜𝗘𝗗* ❏]══╗
+║➲ *⛔ 𝗥𝗘𝗦𝗧𝗥𝗜𝗖𝗧𝗘𝗗*
+║
+║➲ *𝗧𝗵𝗶𝘀 𝗰𝗼𝗺𝗺𝗮𝗻𝗱 𝗜𝗦*
+║➲ *𝗡𝗢𝗪 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗧𝗢*
+║➲ *𝗔𝗗𝗠𝗜𝗡𝗦 𝗢𝗡𝗟𝗬*
+╚═══════════════╝`;
     },
 
-    // Simple text templates for quick responses
-
+    // Simple responses
     simpleText: {
+        echo: (text) => {
+            return `╔══[❏ *𝗘𝗖𝗛𝗢* ❏]══╗
+║➲ ${text}
+╚═══════════════╝`;
+        },
 
-        time: (date, time, timezone, botInfo = {}) => {
+        reversed: (text) => {
+            return `╔══[❏ *𝗥𝗘𝗩𝗘𝗥𝗦𝗘𝗗* ❏]══╗
+║➲ ${text}
+╚═══════════════╝`;
+        },
 
+        count: (words, chars, noSpace) => {
             const infoSections = [
-
                 {
-
-                    title: 'SERVER TIME',
-
+                    title: '𝗞𝗘𝗬𝗦',
                     items: [
-
-                        { label: '📅 Date', value: date },
-
-                        { label: '⏰ Time', value: time },
-
-                        { label: '🌍 Timezone', value: timezone },
-
-                        { label: '🔄 Updated', value: 'Real-time' }
-
+                        { label: '📝 𝗪𝗼𝗿𝗱𝘀', value: words },
+                        { label: '📄 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀', value: chars },
+                        { label: '🔤 𝗡𝗼 𝗦𝗽𝗮𝗰𝗲𝘀', value: noSpace }
                     ]
-
                 }
-
             ];
-
-            return design.buildInfoSimple('SERVER TIME', infoSections);
-
+            return design.buildInfo('𝗧𝗘𝗫𝗧 𝗔𝗡𝗔𝗟𝗬𝗦𝗜𝘀', infoSections);
         },
 
-        
-
-        echo: (text, botInfo = {}) => {
-
-            const sections = [
-
-                {
-
-                    title: 'ECHO MESSAGE',
-
-                    items: [text]
-
-                }
-
-            ];
-
-            return design.buildSimple('ECHO', sections);
-
-        },
-
-        
-
-        reversed: (text, botInfo = {}) => {
-
-            const sections = [
-
-                {
-
-                    title: 'REVERSED TEXT',
-
-                    items: [text]
-
-                }
-
-            ];
-
-            return design.buildSimple('REVERSED TEXT', sections);
-
-        },
-
-        
-
-        count: (words, chars, noSpace, botInfo = {}) => {
-
-            const infoSections = [
-
-                {
-
-                    title: 'TEXT ANALYSIS',
-
-                    items: [
-
-                        { label: '📝 Words', value: words },
-
-                        { label: '🔤 Characters', value: chars },
-
-                        { label: '🔡 No Spaces', value: noSpace },
-
-                        { label: '📏 Average', value: `${(chars/words).toFixed(2)} chars/word` }
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildInfoSimple('TEXT ANALYSIS', infoSections);
-
-        },
-
-        
-
-        broadcastStart: (count, botInfo = {}) => {
-
-            const sections = [
-
-                {
-
-                    title: 'BROADCASTING',
-
-                    items: [
-
-                        `⏳ Sending to ${count} chats...`,
-
-                        'Please wait...'
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildSimple('BROADCASTING', sections);
-
-        },
-
-        
-
-        broadcastComplete: (success, total, rate, botInfo = {}) => {
-
-            const infoSections = [
-
-                {
-
-                    title: 'BROADCAST RESULTS',
-
-                    items: [
-
-                        { label: 'Sent', value: `${success}/${total}` },
-
-                        { label: 'Success Rate', value: `${rate}%` },
-
-                        { label: 'Failed', value: total - success },
-
-                        { label: 'Status', value: '✅ Complete' }
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildInfoSimple('BROADCAST COMPLETE', infoSections);
-
-        },
-
-        
-
-        adminList: (list, count, botInfo = {}) => {
-
-            const sections = [
-
-                {
-
-                    title: 'ADMINISTRATORS',
-
-                    items: [
-
-                        ...list.split('\n'),
-
-                        '',
-
-                        `📊 Total Admins: ${count}`
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildSimple('ADMINISTRATORS', sections);
-
-        },
-
-        
-
-        stats: (uptime, heapMB, totalMB, chats, statusViews, admins, timestamp, botInfo = {}) => {
-
-            const infoSections = [
-
-                {
-
-                    title: 'SYSTEM STATS',
-
-                    items: [
-
-                        { label: '⏱️ Uptime', value: uptime },
-
-                        { label: '💾 Heap', value: `${heapMB}MB` },
-
-                        { label: '💾 Total', value: `${totalMB}MB` }
-
-                    ]
-
-                },
-
-                {
-
-                    title: 'ACTIVITY',
-
-                    items: [
-
-                        { label: 'Active Chats', value: chats },
-
-                        { label: 'Status Views', value: statusViews },
-
-                        { label: 'Admins', value: admins }
-
-                    ]
-
-                },
-
-                {
-
-                    title: 'TIMESTAMP',
-
-                    items: [
-
-                        { label: 'Generated', value: timestamp }
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildInfoSimple('BOT STATISTICS', infoSections);
-
-        },
-
-        
-
-        stickerCreating: '⏳ Creating sticker...\nPlease wait...',
-
-        stickerConverted: '✅ Sticker converted to image!',
-
-        
-
-        broadcast: (message, botInfo = {}) => {
-
-            const sections = [
-
-                {
-
-                    title: 'BROADCAST MESSAGE',
-
-                    items: [
-
-                        message,
-
-                        '',
-
-                        '_Sent by Administrator_'
-
-                    ]
-
-                }
-
-            ];
-
-            return design.buildSimple('BROADCAST', sections);
-
-        }
-
+        sticker: '⏳ *Creating Sticker...*\n*Please wait...*',
+        imageConverted: '✅ *Sticker Converted To Image*'
     }
-
 };
-
-// Export both templates and design utilities
 
 module.exports = { templates, design };
