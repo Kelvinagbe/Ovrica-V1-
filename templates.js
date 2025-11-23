@@ -19,12 +19,12 @@ const design = {
     topHeader: (botInfo) => {
         const status = getServerStatus();
         return `╔══[❏ *𝗢𝗩𝗥𝗜𝗖𝗔 𝗩𝟭* ❏]
-║➲ *𝗡𝗔𝗠𝗘:* ${botInfo.name || 'OVRICA-V1'}
-║➲ *𝗢𝗪𝗡𝗘𝗥:* ${botInfo.owner || 'KELVIN AGBE'}
-║➲ *𝗩𝗘𝗥𝗦𝗜𝗢𝗡:* ${botInfo.version || 'v1.0.0'}
-║➲ *𝗣𝗥𝗘𝗙𝗜𝗫:* ${botInfo.prefix || '/'}
-║➲ *𝗨𝗣𝗧𝗜𝗠𝗘:* ${status.uptime}
-║➲ *𝗠𝗘𝗠𝗢𝗥𝗬:* ${status.memory}
+║➲ 𝗡𝗔𝗠𝗘: ${botInfo.name || 'OVRICA-V1'}
+║➲ 𝗢𝗪𝗡𝗘𝗥: ${botInfo.owner || 'KELVIN AGBE'}
+║➲ 𝗩𝗘𝗥𝗦𝗜𝗢𝗡: ${botInfo.version || 'v1.0.0'}
+║➲ 𝗣𝗥𝗘𝗙𝗜𝗫: ${botInfo.prefix || '/'}
+║➲ 𝗨𝗣𝗧𝗜𝗠𝗘: ${status.uptime}
+║➲ 𝗠𝗘𝗠𝗢𝗥𝗬: ${status.memory}
 ╚══[❏`;
     },
 
