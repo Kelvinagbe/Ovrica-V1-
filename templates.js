@@ -109,26 +109,8 @@ const templates = {
             {
                 title: '𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨',
                 items: [
-                    '/ban',
-                    '/unban',
-                    '/promote',
-                    '/demote',
-                    '/mute',
-                    '/unmute',
-                    '/kick',
-                    '/kickall',
-                    '/add',
-                    '/slowmode',
-                    '/lockgroup',
-                    '/unlockgroup',
-                    '/setname',
-                    '/setdesc',
-                    '/revoke',
-                    '/resetlink',
-                    '/creategc',
-                    '/leavegc',
-                    '/welcome',
-                    '/goodbye'
+                    '/tagall',
+                    '/hidetag',
                 ]
             },
             {
@@ -145,49 +127,17 @@ const templates = {
                 ]
             },
             {
-                title: '𝗙𝗨𝗡 𝗠𝗘𝗡𝗨',
-                items: [
-                    '/dice',
-                    '/coin',
-                    '/joke',
-                    '/riddle',
-                    '/roast',
-                    '/8ball',
-                    '/truth',
-                    '/dare'
-                ]
-            },
-            {
-                title: '𝗧𝗘𝗫𝗧 𝗧𝗢𝗢𝗟𝗦',
-                items: [
-                    '/count',
-                    '/reverse',
-                    '/case',
-                    '/palindrome',
-                    '/tts',
-                    '/attp',
-                    '/lyrics'
-                ]
-            },
-            {
                 title: '𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨',
                 items: [
                     '/sticker',
-                    '/blur',
-                    '/meme',
-                    '/emojimix',
-                    '/take',
-                    '/simage'
+                   '/take',
                 ]
             },
             {
                 title: '𝗔𝗜 𝗠𝗘𝗡𝗨',
                 items: [
-                    '/gpt',
-                    '/gemini',
-                    '/imagine',
-                    '/dalle',
-                    '/flux'
+                    '/txt2img',
+                    
                 ]
             },
             {
@@ -207,11 +157,9 @@ const templates = {
                 title: '𝗢𝗧𝗛𝗘𝗥',
                 items: [
                     '/ping',
-                    '/alive',
-                    '/uptime',
                     '/owner',
-                    '/weather',
-                    '/groupinfo',
+                    '/info',
+                    '/steal',
                     '/admins'
                 ]
             }
