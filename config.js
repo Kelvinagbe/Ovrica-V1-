@@ -23,7 +23,7 @@ botMode: 'public',
 
     channelUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
 
-    thumbnailUrl: "./icon.jpg",
+    thumbnailUrl: "https://files.catbox.moe/gzrvvk.jpg",
 
     ownerNumber: "2348109860102",
 
