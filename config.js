@@ -60,7 +60,7 @@ botMode: 'public',
 
     // Welcome Message
 
-    sendWelcome: true,
+    sendWelcome: fasle,
 
     
 
