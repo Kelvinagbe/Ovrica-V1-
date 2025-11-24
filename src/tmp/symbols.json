@@ -1,11 +1,11 @@
 {
   "symbols": {
-    "header": "╔══[❏",
-    "footer": "╚══[❏",
+    "header": "╔══[❏⧉",
+    "footer": "╚══[❏⧉",
     "item": "║➲",
     "separator": "║",
     "title_start": "*",
-    "title_end": "* ❏]",
+    "title_end": "* ⧉❏]",
     "bold_start": "",
     "bold_end": ""
   },
