@@ -1,0 +1,43 @@
+{
+  "symbols": {
+    "header": "╔══[❏",
+    "footer": "╚══[❏",
+    "item": "║➲",
+    "separator": "║",
+    "title_start": "❏ *",
+    "title_end": "* ❏]",
+    "bold_start": "*",
+    "bold_end": "*"
+  },
+  "icons": {
+    "success": "✅",
+    "error": "❌",
+    "warning": "⚠️",
+    "loading": "⏳",
+    "info": "ℹ️",
+    "fire": "🔥",
+    "star": "⭐",
+    "lightning": "⚡",
+    "shield": "🛡️",
+    "gear": "⚙️",
+    "chat": "💬",
+    "memory": "💾",
+    "clock": "⏱️",
+    "signal": "📡",
+    "bulb": "💡",
+    "lock": "🔒",
+    "unlock": "🔓"
+  },
+  "status": {
+    "online": "✅ *Online*",
+    "offline": "❌ *Offline*",
+    "maintenance": "⚠️ *Maintenance*",
+    "busy": "🔴 *Busy*",
+    "active": "✅ Active",
+    "inactive": "❌ Inactive",
+    "enabled": "✅ Enabled",
+    "disabled": "❌ Disabled",
+    "ready": "✅ Ready",
+    "restricted": "⛔ 𝗥𝗘𝗦𝗧𝗥𝗜𝗖𝗧𝗘𝗗"
+  }
+}
