@@ -75,7 +75,7 @@ const design = {
         const status = getServerStatus();
         const fields = headData.display.topHeader.fields;
         
-        let header = design.header('𝗢𝗩𝗥𝗜𝗖𝗔 𝗩𝟭');
+        let header = design.header('𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏');
         header += '\n' + design.infoItem(fields[0], botInfo.name);
         header += '\n' + design.infoItem(fields[1], botInfo.owner);
         header += '\n' + design.infoItem(fields[2], botInfo.version);
