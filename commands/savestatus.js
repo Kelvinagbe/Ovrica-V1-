@@ -1,4 +1,4 @@
-// commands/savestatus.js - Save status by replying to it
+ // commands/savestatus.js - Save status by replying to it
 
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
