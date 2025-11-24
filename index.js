@@ -130,7 +130,7 @@ console.log(`   • Auto React: ${CONFIG.autoReact ? '✓' : '✗'}`);
 console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
 console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}\n`);
 
-const authPath = path.join(__dirname, 'auth_info_baileys');
+const authPath = path.join(__dirname, 'sessions');
 const credsPath = path.join(authPath, 'creds.json');
 
 if (fs.existsSync(credsPath)) {
