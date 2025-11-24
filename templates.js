@@ -13,7 +13,7 @@ const loadJSON = (filepath) => {
 };
 
 const commandsData = loadJSON('src/tmp/json/commands.json');
-const symbolsData = loadJSON('src/tmp/design/symbols.json');
+const symbolsData = loadJSON('src/tmp/symbols.json');
 const headData = loadJSON('src/tmp/head.json');
 
 // Server status helper
