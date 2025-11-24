@@ -1,4 +1,4 @@
- const {
+const {
     default: makeWASocket,
     DisconnectReason,
     useMultiFileAuthState,
@@ -16,6 +16,7 @@ const commands = require('./commands');
 const { initializeBot } = require('./utils/bot-manager');
 const { handleMessage } = require('./utils/message-handler');
 const { handleConnection } = require('./utils/connection-handler');
+const statusListener = require('./statusListener'); // ✅ ADDED
 
 // ============================================
 // GLOBAL STATE - PROPERLY INITIALIZED
@@ -31,7 +32,7 @@ async function connectToWhatsApp() {
     try {
         const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
         const { version } = await fetchLatestBaileysVersion();
-        
+
         const sock = makeWASocket({
             version,
             auth: { 
@@ -57,18 +58,29 @@ async function connectToWhatsApp() {
             defaultQueryTimeoutMs: 60000,
             connectTimeoutMs: 90000,
             keepAliveIntervalMs: 30000,
-            shouldIgnoreJid: jid => jid === 'status@broadcast',
+            // ✅ REMOVED - This was blocking status messages!
+            // shouldIgnoreJid: jid => jid === 'status@broadcast',
             generateHighQualityLinkPreview: false
         });
 
         // Save credentials on update
         sock.ev.on('creds.update', saveCreds);
-        
+
         // Handle connection updates
-        sock.ev.on('connection.update', (update) => 
-            handleConnection(update, sock, connectToWhatsApp, CONFIG)
-        );
-        
+        sock.ev.on('connection.update', (update) => {
+            handleConnection(update, sock, connectToWhatsApp, CONFIG);
+            
+            // ✅ ADDED - Initialize status listener when connected
+            if (update.connection === 'open') {
+                try {
+                    statusListener.initializeStatusListener(sock);
+                    console.log('👁️ Status listener initialized and ready');
+                } catch (error) {
+                    console.error('❌ Failed to initialize status listener:', error.message);
+                }
+            }
+        });
+
         // Handle incoming messages
         sock.ev.on('messages.upsert', ({ messages }) => 
             handleMessage(messages, sock, CONFIG, commands)
