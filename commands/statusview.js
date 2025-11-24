@@ -6,12 +6,12 @@ module.exports = {
     name: 'statusview',
     admin: true,
     description: 'Toggle automatic status viewing on/off',
-    
+
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
             const settings = statusListener.getSettings();
             const action = args[0]?.toLowerCase();
-            
+
             if (!action || !['on', 'off', 'status', 'info'].includes(action)) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ STATUS VIEW ⌟* ❏\n` +
@@ -66,7 +66,7 @@ module.exports = {
                     autoView: true,
                     lastToggled: new Date().toISOString()
                 });
-                
+
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ SUCCESS ⌟* ❏\n` +
                         `│\n` +
@@ -83,15 +83,15 @@ module.exports = {
                         `└ ❏\n` +
                         `> Powered by 🎭Kelvin🎭`
                 }, { quoted: msg });
-                
+
                 console.log('👁️ Status auto-view ENABLED');
-                
+
             } else if (action === 'off') {
                 statusListener.updateSettings({ 
                     autoView: false,
                     lastToggled: new Date().toISOString()
                 });
-                
+
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ DISABLED ⌟* ❏\n` +
                         `│\n` +
@@ -103,14 +103,14 @@ module.exports = {
                         `└ ❏\n` +
                         `> Powered by 🎭Kelvin🎭`
                 }, { quoted: msg });
-                
+
                 console.log('👁️ Status auto-view DISABLED');
-                
+
             } else if (action === 'status' || action === 'info') {
                 const lastToggled = settings.lastToggled 
                     ? new Date(settings.lastToggled).toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
                     : 'Never';
-                    
+
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ STATUS INFO ⌟* ❏\n` +
                         `│\n` +
@@ -131,7 +131,7 @@ module.exports = {
                         `> Powered by 🎭Kelvin🎭`
                 }, { quoted: msg });
             }
-            
+
         } catch (error) {
             console.error('❌ StatusView error:', error);
             await sock.sendMessage(from, {
