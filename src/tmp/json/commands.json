@@ -1,0 +1,209 @@
+{
+  "botInfo": {
+    "name": "OVRICA-V1",
+    "owner": "KELVIN AGBE",
+    "version": "v1.0.0",
+    "prefix": "/"
+  },
+  "menu": {
+    "sections": [
+      {
+        "title": "𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨",
+        "commands": [
+          "/tagall",
+          "/hidetag",
+          "/ban",
+          "/promote",
+          "/kick"
+        ]
+      },
+      {
+        "title": "𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗥 𝗠𝗘𝗡𝗨",
+        "commands": [
+          "/play",
+          "/song",
+          "/music",
+          "/video",
+          "/instagram",
+          "/facebook",
+          "/tiktok",
+          "/youtube"
+        ]
+      },
+      {
+        "title": "𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨",
+        "commands": [
+          "/sticker",
+          "/take"
+        ]
+      },
+      {
+        "title": "𝗔𝗜 𝗠𝗘𝗡𝗨",
+        "commands": [
+          "/txt2img"
+        ]
+      },
+      {
+        "title": "𝗣𝗢𝗪𝗘𝗥 𝗠𝗘𝗡𝗨",
+        "commands": [
+          "/save",
+          "/vv",
+          "/tourl",
+          "/delete",
+          "/block",
+          "/unblock",
+          "/pair",
+          "/warnings"
+        ]
+      },
+      {
+        "title": "𝗢𝗧𝗛𝗘𝗥",
+        "commands": [
+          "/ping",
+          "/owner",
+          "/info",
+          "/steal",
+          "/admins"
+        ]
+      }
+    ]
+  },
+  "help": {
+    "general": [
+      {
+        "command": "/menu",
+        "description": "Main menu"
+      },
+      {
+        "command": "/help",
+        "description": "Command guide"
+      },
+      {
+        "command": "/ping",
+        "description": "Test bot"
+      },
+      {
+        "command": "/info",
+        "description": "Bot information"
+      }
+    ],
+    "group": [
+      {
+        "command": "/ban",
+        "usage": "reply/mention",
+        "description": "Ban user from group"
+      },
+      {
+        "command": "/promote",
+        "usage": "reply/mention",
+        "description": "Promote user to admin"
+      },
+      {
+        "command": "/kick",
+        "usage": "reply/mention",
+        "description": "Remove user from group"
+      }
+    ],
+    "admin": [
+      {
+        "command": "/broadcast",
+        "usage": "message",
+        "description": "Send message to all chats"
+      },
+      {
+        "command": "/stats",
+        "description": "View bot statistics"
+      },
+      {
+        "command": "/admins",
+        "description": "List all admins"
+      }
+    ]
+  },
+  "messages": {
+    "error": {
+      "title": "𝗘𝗥𝗥𝗢𝗥",
+      "tips": [
+        "𝗖𝗵𝗲𝗰𝗸 𝗦𝗬𝗡𝗧𝗔𝗫",
+        "𝗨𝘀𝗲 /help",
+        "𝗖𝗼𝗻𝘁𝗮𝗰𝘁 𝗔𝗱𝗺𝗶𝗻"
+      ]
+    },
+    "adminOnly": {
+      "title": "𝗔𝗖𝗖𝗘𝗦𝗦 𝗗𝗘𝗡𝗜𝗘𝗗",
+      "message": "𝗧𝗵𝗶𝘀 𝗰𝗼𝗺𝗺𝗮𝗻𝗱 𝗜𝗦 𝗡𝗢𝗪 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗧𝗢 𝗔𝗗𝗠𝗜𝗡𝗦 𝗢𝗡𝗟𝗬"
+    },
+    "sticker": {
+      "creating": "⏳ Creating Sticker... Please wait...",
+      "converted": "✅ Sticker Converted To Image"
+    }
+  },
+  "features": {
+    "automation": [
+      {
+        "name": "𝗧𝘆𝗽𝗶𝗻𝗴",
+        "key": "autoTyping"
+      },
+      {
+        "name": "𝗥𝗲𝗮𝗰𝘁",
+        "key": "autoReact"
+      },
+      {
+        "name": "𝗦𝘁𝗮𝘁𝘂𝘀 𝗩𝗶𝗲𝘄",
+        "key": "autoViewStatus"
+      }
+    ],
+    "main": [
+      {
+        "name": "𝗔𝗜 𝗘𝗻𝗴𝗶𝗻𝗲",
+        "status": "Ready"
+      },
+      {
+        "name": "𝗦𝘁𝗶𝗰𝗸𝗲𝗿𝘀",
+        "status": "Ready"
+      },
+      {
+        "name": "𝗗𝗼𝗪𝗻𝗹𝗼𝗮𝗱𝘀",
+        "status": "Ready"
+      }
+    ]
+  },
+  "settings": {
+    "automation": [
+      {
+        "name": "𝗧𝘆𝗽𝗶𝗻𝗴",
+        "key": "autoTyping"
+      },
+      {
+        "name": "𝗥𝗲𝗮𝗰𝘁",
+        "key": "autoReact"
+      },
+      {
+        "name": "𝗢𝗻𝗹𝗶𝗻𝗲",
+        "key": "alwaysOnline"
+      }
+    ],
+    "admin": [
+      {
+        "name": "𝗥𝗲𝗴𝗶𝘀𝘁𝗲𝗿𝗲𝗱",
+        "key": "admins"
+      },
+      {
+        "name": "𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁",
+        "value": "Available"
+      }
+    ]
+  },
+  "display": {
+    "topHeader": {
+      "fields": [
+        "𝗡𝗔𝗠𝗘",
+        "𝗢𝗪𝗡𝗘𝗥",
+        "𝗩𝗘𝗥𝗦𝗜𝗢𝗡",
+        "𝗣𝗥𝗘𝗙𝗜𝗫",
+        "𝗨𝗣𝗧𝗜𝗠𝗘",
+        "𝗠𝗘𝗠𝗢𝗥𝗬"
+      ]
+    }
+  }
+}
