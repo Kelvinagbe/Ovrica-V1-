@@ -6,8 +6,8 @@
     "separator": "║",
     "title_start": "*",
     "title_end": "* ❏]",
-    "bold_start": "*",
-    "bold_end": "*"
+    "bold_start": "",
+    "bold_end": ""
   },
   "icons": {
     "success": "✅",
