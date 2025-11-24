@@ -83,8 +83,8 @@ function reloadTemplates() {
         // Clear all JSON file caches
         const jsonFiles = [
             './src/tmp/json/commands.json',
-            './src/tmp/design/symbols.json',
-            './src/tmp/head.json'
+            './src/tmp/symbols.json',
+            './src/head.json'
         ];
         
         jsonFiles.forEach(file => {
