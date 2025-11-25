@@ -82,7 +82,7 @@ module.exports = {
 
                             body: "OVRICA WhatsApp Bot v1.0",
 
-                            thumbnailUrl: "https://files.catbox.moe/gzrvvk.jpg",
+                            thumbnailUrl: "https://files.catbox.moe/ked25s.jpg",
 
                             sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
 
