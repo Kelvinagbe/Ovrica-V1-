@@ -2,7 +2,7 @@
 // ============================================
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
-const chatAI = require('../chatAI'); // ✅ ADDED: AI Chat integration
+const chatAI = require('../src/db/chatAI'); // ✅ ADDED: AI Chat integration
 
 // Import state from index
 let welcomedUsers, statusViewed;
