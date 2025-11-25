@@ -86,17 +86,22 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         }
 
         // ============================================
-        // ✅ NEW: AI CHAT INTEGRATION
+        // ✅ NEW: AI CHAT INTEGRATION (SMART TRIGGERS)
         // ============================================
         if (!isCommand && text && !isOwner) {
-            // Try AI chat first (if enabled)
-            const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
+            // Check if bot should respond with AI
+            const shouldRespondWithAI = checkIfShouldRespondWithAI(msg, from, isGroup, sock);
             
-            if (aiHandled) {
-                // AI handled the message, no need to continue
-                return;
+            if (shouldRespondWithAI) {
+                // Try AI chat
+                const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
+                
+                if (aiHandled) {
+                    // AI handled the message, no need to continue
+                    return;
+                }
             }
-            // If AI is disabled or failed, continue normally
+            // If AI is disabled or not triggered, continue normally
         }
 
         // Execute command
@@ -114,6 +119,40 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
+
+/**
+ * Check if bot should respond with AI
+ * @param {object} msg - Message object
+ * @param {string} from - Chat JID
+ * @param {boolean} isGroup - Is group chat
+ * @param {object} sock - WhatsApp socket
+ * @returns {boolean} - Should respond
+ */
+function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
+    // 1. Always respond in PRIVATE CHATS (DM)
+    if (!isGroup) {
+        console.log('🤖 AI Trigger: Private chat (DM)');
+        return true;
+    }
+
+    // 2. In GROUPS, ONLY respond if message is REPLY to bot's message
+    const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const quotedParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
+    const isFromMe = msg.message?.extendedTextMessage?.contextInfo?.fromMe;
+    
+    // Check if replying to bot
+    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net' || sock.user?.id;
+    const isReplyToBot = quotedParticipant === botJid || isFromMe === true;
+    
+    if (quotedMsg && isReplyToBot) {
+        console.log('🤖 AI Trigger: Reply to bot\'s message in group');
+        return true;
+    }
+
+    // Don't respond to other group messages (no tag, no reply)
+    console.log('🤖 AI Skip: Group message (not a reply to bot)');
+    return false;
+}
 
 /**
  * Extract text from various message types
