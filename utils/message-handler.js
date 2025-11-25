@@ -60,6 +60,11 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
+        // Handle song selection (1 or 2 reply)
+        if (await handleSongSelection(sock, from, msg, text, commands)) {
+            return;
+        }
+
         // Check if command
         const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
 
@@ -218,6 +223,27 @@ async function handleTxt2ImgSession(sock, from, msg, text, userName) {
         }
     } catch {}
     return false;
+}
+
+async function handleSongSelection(sock, from, msg, text, commands) {
+    try {
+        // Check if message is just "1" or "2"
+        if (!text || !/^[12]$/.test(text.trim())) return false;
+
+        // Check if song command exists
+        const songCommand = commands['song'];
+        if (!songCommand) return false;
+
+        console.log(`🎵 Song selection detected: ${text.trim()}`);
+
+        // Call song command with the selection
+        await songCommand.exec(sock, from, [text.trim()], msg, false);
+        return true;
+
+    } catch (error) {
+        console.error('❌ Song selection error:', error);
+        return false;
+    }
 }
 
 function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
