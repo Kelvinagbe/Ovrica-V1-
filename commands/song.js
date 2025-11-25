@@ -1,12 +1,9 @@
-// commands/song.js - Fixed YouTube Song Downloader with Reply Support
-// Install: npm install @distube/ytdl-core yt-search
+// commands/song.js - YouTube Song Downloader with play-dl
+// Install: npm install play-dl
 
 const fs = require('fs');
 const path = require('path');
-
-// Lazy load dependencies
-let ytdl, searchModule;
-let usePlayDl = false;
+const play = require('play-dl');
 
 // Store user selections temporarily
 const userSelections = new Map();
@@ -21,28 +18,6 @@ module.exports = {
             console.log('🎵 Song command executed');
             console.log('📝 Args:', args);
 
-            // Load dependencies only when needed
-            if (!searchModule || !ytdl) {
-                try {
-                    ytdl = require('play-dl');
-                    try {
-                        searchModule = require('play-dl');
-                        usePlayDl = true;
-                        console.log('✅ Using play-dl');
-                    } catch {
-                        searchModule = require('yt-search');
-                        usePlayDl = false;
-                        console.log('✅ Using yt-search');
-                    }
-                } catch (error) {
-                    return await sock.sendMessage(from, {
-                        text: `❌ *Missing Dependencies*\n\n` +
-                            `📦 Install:\nnpm install @distube/ytdl-core yt-search\n\n` +
-                            `Error: ${error.message}`
-                    }, { quoted: msg });
-                }
-            }
-
             // Check if user is selecting download type
             if (args.length === 1 && (args[0] === '1' || args[0] === '2')) {
                 const selection = userSelections.get(from);
@@ -56,7 +31,7 @@ module.exports = {
                 }
 
                 const downloadType = args[0] === '1' ? 'audio' : 'video';
-                await downloadMedia(sock, from, msg, selection.video, downloadType, ytdl);
+                await downloadMedia(sock, from, msg, selection.video, downloadType);
                 userSelections.delete(from);
                 return;
             }
@@ -101,51 +76,42 @@ module.exports = {
                 text: `🔍 *Searching:* ${songName}\n\n⏳ Please wait...`
             }, { quoted: msg });
 
-            // Search YouTube
-            let video;
-            
-            if (usePlayDl) {
-                const results = await searchModule.search(songName, { limit: 1, source: { youtube: 'video' } });
-                if (!results || results.length === 0) {
-                    return await sock.sendMessage(from, {
-                        text: `❌ *No results found!*\n\n` +
-                            `📝 Try:\n• Different song name\n• Add artist name\n• Check spelling`,
-                        edit: searchMsg.key
-                    });
-                }
-                
-                const result = results[0];
-                video = {
-                    title: result.title,
-                    url: result.url,
-                    thumbnail: result.thumbnails[0]?.url || 'https://i.ibb.co/0FksjQz/icon.jpg',
-                    timestamp: `${Math.floor(result.durationInSec / 60)}:${(result.durationInSec % 60).toString().padStart(2, '0')}`,
-                    author: { name: result.channel?.name || 'Unknown' },
-                    views: result.views || 0,
-                    ago: result.uploadedAt || 'Unknown'
-                };
-            } else {
-                const search = await searchModule(songName);
-                video = search.videos[0];
-                
-                if (!video) {
-                    return await sock.sendMessage(from, {
-                        text: `❌ *No results found!*\n\n` +
-                            `📝 Try:\n• Different song name\n• Add artist name\n• Check spelling`,
-                        edit: searchMsg.key
-                    });
-                }
+            // Search YouTube using play-dl
+            const searchResults = await play.search(songName, {
+                limit: 1,
+                source: { youtube: 'video' }
+            });
+
+            if (!searchResults || searchResults.length === 0) {
+                return await sock.sendMessage(from, {
+                    text: `❌ *No results found!*\n\n` +
+                        `📝 Try:\n• Different song name\n• Add artist name\n• Check spelling`,
+                    edit: searchMsg.key
+                });
             }
+
+            const result = searchResults[0];
+            
+            // Format video data
+            const video = {
+                title: result.title,
+                url: result.url,
+                thumbnail: result.thumbnails[0]?.url || 'https://i.ibb.co/0FksjQz/icon.jpg',
+                duration: result.durationRaw || '0:00',
+                durationInSec: result.durationInSec || 0,
+                channel: result.channel?.name || 'Unknown',
+                views: result.views || 0,
+                uploadedAt: result.uploadedAt || 'Unknown'
+            };
 
             console.log(`✅ Found: ${video.title}`);
 
             // Check duration (max 10 minutes)
-            const durationSeconds = video.timestamp.split(':').reduce((acc, time) => (60 * acc) + +time, 0);
-            if (durationSeconds > 600) {
+            if (video.durationInSec > 600) {
                 return await sock.sendMessage(from, {
                     text: `❌ *Song too long!*\n\n` +
                         `📝 Found: ${video.title}\n` +
-                        `⏱️ Duration: ${video.timestamp}\n` +
+                        `⏱️ Duration: ${video.duration}\n` +
                         `⚠️ Maximum: 10 minutes`,
                     edit: searchMsg.key
                 });
@@ -176,10 +142,10 @@ module.exports = {
                     image: thumbnailBuffer,
                     caption: `┌ ❏ *⌜ SONG FOUND ⌟* ❏\n│\n` +
                         `├◆ 🎵 *Title:* ${video.title}\n` +
-                        `├◆ 👤 *Artist:* ${video.author.name}\n` +
-                        `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
+                        `├◆ 👤 *Channel:* ${video.channel}\n` +
+                        `├◆ ⏱️ *Duration:* ${video.duration}\n` +
                         `├◆ 👁️ *Views:* ${video.views.toLocaleString()}\n` +
-                        `├◆ 📅 *Uploaded:* ${video.ago}\n│\n` +
+                        `├◆ 📅 *Uploaded:* ${video.uploadedAt}\n│\n` +
                         `└ ❏\n` +
                         `┌ ❏ ◆ *⌜CHOOSE FORMAT⌟* ◆\n│\n` +
                         `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
@@ -191,10 +157,10 @@ module.exports = {
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ SONG FOUND ⌟* ❏\n│\n` +
                         `├◆ 🎵 *Title:* ${video.title}\n` +
-                        `├◆ 👤 *Artist:* ${video.author.name}\n` +
-                        `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
+                        `├◆ 👤 *Channel:* ${video.channel}\n` +
+                        `├◆ ⏱️ *Duration:* ${video.duration}\n` +
                         `├◆ 👁️ *Views:* ${video.views.toLocaleString()}\n` +
-                        `├◆ 📅 *Uploaded:* ${video.ago}\n│\n` +
+                        `├◆ 📅 *Uploaded:* ${video.uploadedAt}\n│\n` +
                         `└ ❏\n` +
                         `┌ ❏ ◆ *⌜CHOOSE FORMAT⌟* ◆\n│\n` +
                         `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
@@ -204,7 +170,7 @@ module.exports = {
                     contextInfo: {
                         externalAdReply: {
                             title: video.title,
-                            body: `${video.author.name} • ${video.timestamp}`,
+                            body: `${video.channel} • ${video.duration}`,
                             thumbnailUrl: video.thumbnail,
                             sourceUrl: video.url,
                             mediaType: 1,
@@ -230,28 +196,28 @@ module.exports = {
     }
 };
 
-async function downloadMedia(sock, from, msg, video, type, ytdl) {
+async function downloadMedia(sock, from, msg, video, type) {
     const processingMsg = await sock.sendMessage(from, {
         text: `⏳ *Downloading ${type}...*\n\n` +
-            `🎵 ${video.title}\n⏱️ ${video.timestamp}\n\n` +
+            `🎵 ${video.title}\n⏱️ ${video.duration}\n\n` +
             `📥 Please wait...`
     }, { quoted: msg });
 
     try {
         console.log(`📥 Downloading ${type}: ${video.url}`);
 
-        if (!ytdl || !ytdl.getInfo) {
-            throw new Error('ytdl-core not loaded');
+        // Validate URL
+        const validate = await play.validate(video.url);
+        if (validate !== 'yt_video') {
+            throw new Error('Invalid YouTube URL');
         }
 
-        const info = await ytdl.getInfo(video.url);
-        console.log('✅ Video info retrieved');
+        // Get stream info
+        const stream = await play.stream(video.url, {
+            quality: type === 'audio' ? 2 : 0  // 2 = audio only, 0 = highest quality
+        });
 
-        const options = type === 'audio' 
-            ? { filter: 'audioonly', quality: 'highestaudio' }
-            : { filter: 'videoandaudio', quality: 'highest' };
-
-        const stream = ytdl(video.url, options);
+        console.log('✅ Stream retrieved');
 
         const tempDir = path.join(__dirname, '../temp');
         if (!fs.existsSync(tempDir)) {
@@ -263,7 +229,8 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
         const filePath = path.join(tempDir, fileName);
         const writeStream = fs.createWriteStream(filePath);
 
-        stream.pipe(writeStream);
+        // Pipe stream to file
+        stream.stream.pipe(writeStream);
 
         writeStream.on('finish', async () => {
             console.log(`✅ Downloaded: ${fileName}`);
@@ -290,7 +257,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                         contextInfo: {
                             externalAdReply: {
                                 title: video.title,
-                                body: `${video.author.name} • ${video.timestamp}`,
+                                body: `${video.channel} • ${video.duration}`,
                                 thumbnailUrl: video.thumbnail,
                                 sourceUrl: video.url,
                                 mediaType: 1,
@@ -304,8 +271,8 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                         video: fileBuffer,
                         caption: `┌ ❏ *⌜ VIDEO ⌟* ❏\n│\n` +
                             `├◆ 🎵 *Title:* ${video.title}\n` +
-                            `├◆ 👤 *Artist:* ${video.author.name}\n` +
-                            `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
+                            `├◆ 👤 *Channel:* ${video.channel}\n` +
+                            `├◆ ⏱️ *Duration:* ${video.duration}\n` +
                             `├◆ 📦 *Size:* ${fileSizeMB} MB\n│\n` +
                             `└ ❏\n> Powered by 🎭Kelvin🎭`,
                         mimetype: 'video/mp4',
@@ -335,7 +302,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
             throw error;
         });
 
-        stream.on('error', (error) => {
+        stream.stream.on('error', (error) => {
             console.error('❌ Stream error:', error);
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             throw error;
@@ -353,6 +320,9 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
         } else if (error.message.includes('ENOSPC')) {
             errorMsg = 'No storage space';
             errorSolution = 'Server storage full';
+        } else if (error.message.includes('Invalid')) {
+            errorMsg = 'Invalid video URL';
+            errorSolution = 'Try searching again';
         }
 
         await sock.sendMessage(from, {
