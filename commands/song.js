@@ -24,7 +24,7 @@ module.exports = {
             // Load dependencies only when needed
             if (!searchModule || !ytdl) {
                 try {
-                    ytdl = require('@distube/ytdl-core');
+                    ytdl = require('play-dl');
                     try {
                         searchModule = require('play-dl');
                         usePlayDl = true;
