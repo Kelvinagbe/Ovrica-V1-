@@ -2,6 +2,7 @@
 // ============================================
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
+const chatAI = require('../chatAI'); // ✅ ADDED: AI Chat integration
 
 // Import state from index
 let welcomedUsers, statusViewed;
@@ -37,7 +38,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         const sender = from.endsWith('@g.us') 
             ? (msg.key.participant || from) 
             : from;
-        
+
         if (!sender) return;
 
         const isOwner = msg.key.fromMe === true;
@@ -84,6 +85,20 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             await autoReactToMessage(sock, from, msg, CONFIG);
         }
 
+        // ============================================
+        // ✅ NEW: AI CHAT INTEGRATION
+        // ============================================
+        if (!isCommand && text && !isOwner) {
+            // Try AI chat first (if enabled)
+            const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
+            
+            if (aiHandled) {
+                // AI handled the message, no need to continue
+                return;
+            }
+            // If AI is disabled or failed, continue normally
+        }
+
         // Execute command
         if (isCommand && text) {
             await executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands);
@@ -127,7 +142,7 @@ async function handleStatusView(sock, msg, CONFIG) {
             const emoji = CONFIG.reactEmojis[
                 Math.floor(Math.random() * CONFIG.reactEmojis.length)
             ];
-            
+
             await sock.sendMessage('status@broadcast', {
                 react: { text: emoji, key: msg.key }
             }).catch(() => {});
@@ -149,26 +164,26 @@ async function handleStatusView(sock, msg, CONFIG) {
 async function handleTxt2ImgSession(sock, from, msg, text, userName) {
     try {
         const txt2img = require('../commands/txt2img');
-        
+
         if (!txt2img?.userSessions) return false;
 
         const session = txt2img.userSessions.get(from);
-        
+
         if (session && /^[1-5]$/.test(text.trim())) {
             console.log(`🎨 txt2img style ${text.trim()} from ${userName}`);
-            
+
             txt2img.userSessions.delete(from);
-            
+
             if (txt2img.generateImage) {
                 await txt2img.generateImage(sock, from, msg, session.prompt, text.trim());
             }
-            
+
             return true;
         }
     } catch (error) {
         // Silent fail
     }
-    
+
     return false;
 }
 
@@ -187,7 +202,7 @@ function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
  */
 async function sendWelcomeMessage(sock, jid, userName, CONFIG) {
     welcomedUsers.add(jid);
-    
+
     try {
         const welcomeText = 
             `┌ ❏ *⌜ WELCOME ⌟* ❏\n│\n` +
@@ -195,7 +210,7 @@ async function sendWelcomeMessage(sock, jid, userName, CONFIG) {
             `├◆ 🤖 I'm ${CONFIG.botName}\n` +
             `├◆ ✨ Type /menu to get started\n│\n` +
             `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-        
+
         await sock.sendMessage(jid, { text: welcomeText });
     } catch (error) {
         // Silent fail
@@ -221,7 +236,7 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
             const emoji = CONFIG.reactEmojis[
                 Math.floor(Math.random() * CONFIG.reactEmojis.length)
             ];
-            
+
             await sock.sendMessage(from, {
                 react: { text: emoji, key: msg.key }
             }).catch(() => {});
@@ -253,7 +268,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
                 `├◆ ⛔ Access denied\n│\n` +
                 `├◆ 💬 Contact: wa.me/${CONFIG.ownerNumber || '2348109860102'}\n│\n` +
                 `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-            
+
             await sock.sendMessage(from, {
                 text: deniedText,
                 contextInfo: {
@@ -274,7 +289,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
                     }
                 }
             }, { quoted: msg }).catch(() => {});
-            
+
             console.log(`👑 Blocked owner command from: ${getUserName(msg)}`);
             return;
         }
@@ -291,7 +306,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
                     `├◆ 🚫 Unauthorized access\n│\n` +
                     `├◆ 💬 Contact: wa.me/${CONFIG.ownerNumber || '2348109860102'}\n│\n` +
                     `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-                
+
                 await sock.sendMessage(from, {
                     text: deniedText,
                     contextInfo: {
@@ -329,7 +344,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
 
     } catch (error) {
         console.error(`❌ Command error [${command}]:`, error.message);
-        
+
         try {
             const errorText = 
                 `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
@@ -338,7 +353,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
                 `├◆ 💥 Error: ${error.message}\n│\n` +
                 `├◆ 💡 Try again or contact support\n│\n` +
                 `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-            
+
             await sock.sendMessage(from, {
                 text: errorText,
                 contextInfo: {
