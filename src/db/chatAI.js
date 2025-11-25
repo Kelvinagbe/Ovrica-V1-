@@ -14,7 +14,6 @@ const axios = require('axios');
 const GROQ_API_KEY = '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'; // ⚠️ Replace with your actual key
 
 // Get key from env or hardcoded value
-const GROQ_API_KEY = process.env.GROQ_API_KEY || 'YOUR_KEY_HERE_FOR_TESTING';
 
 // Validate API key
 if (!GROQ_API_KEY || GROQ_API_KEY === 'YOUR_KEY_HERE_FOR_TESTING') {
