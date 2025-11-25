@@ -1,89 +1,60 @@
-// config.js - Bot configuration
+const { loadJSON } = require('./utils/db-loader');
+
+// Load data from JSON files
+const admins = loadJSON('admin.json', { admins: [] });
+const settings = loadJSON('settings.json', {
+    botMode: 'public',
+    autoTyping: true,
+    autoViewStatus: true,
+    alwaysOnline: true,
+    autoReact: false,
+    sendWelcome: false,
+    logMessages: false,
+    logCommands: false,
+    logErrors: true
+});
+const botInfo = loadJSON('botinfo.json', {
+    botName: 'OVRICA-V1',
+    version: '1.0.0',
+    owner: 'KELVIN AGBE',
+    ownerNumber: '2348109860102'
+});
 
 const CONFIG = {
+    // From botinfo.json
+    botName: botInfo.botName,
+    version: botInfo.version,
+    owner: botInfo.owner,
+    ownerNumber: botInfo.ownerNumber,
+    channelLink: botInfo.channelLink,
+    newsletterJid: botInfo.newsletterJid,
+    newsletterName: botInfo.newsletterName,
+    channelUrl: botInfo.channelUrl,
+    thumbnailUrl: botInfo.thumbnailUrl,
     
-botMode: 'public', 
-    // Bot Information
-
-    botName: 'OVRICA-V1',
-
-    version: '1.0.0',
-
-    owner: 'KELVIN AGBE',
-
-    ownerNumber: '2348109860102',
-
-    channelLink: 'https://whatsapp.com/channel/0029VajVvKSEquiIuUH1Rd2q',
-
-    // Channel Info (for contextInfo styling)
-
-    newsletterJid: "120363418958316196@newsletter",
-
-    newsletterName: "🎭 Kelvin Tech",
-
-    channelUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-
-    thumbnailUrl: "https://files.catbox.moe/gzrvvk.jpg",
-
-    ownerNumber: "2348109860102",
-
-    // Bot Details
-
+    // From settings.json
+    botMode: settings.botMode,
+    autoTyping: settings.autoTyping,
+    autoViewStatus: settings.autoViewStatus,
+    alwaysOnline: settings.alwaysOnline,
+    autoReact: settings.autoReact,
+    sendWelcome: settings.sendWelcome,
+    logMessages: settings.logMessages,
+    logCommands: settings.logCommands,
+    logErrors: settings.logErrors,
+    
+    // From admin.json
+    admins: admins.admins,
+    
+    // Static config (doesn't change)
     prefix: '/',
-
     platform: 'LINUX',
-
     timezone: 'Africa/Lagos',
-
     totalRam: '32050MB',
-
     cpu: 'Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz',
-
     mode: 'Public',
-    
-
     mood: '🌙',
-
-    
-
-    // Auto Features
-
-    autoTyping: true,
-
-    autoViewStatus: true,
-
-    alwaysOnline: true,
-
-    autoReact: false,
-
-    
-
-    // Welcome Message
-
-    sendWelcome: false,
-
-    
-
-    // React Emojis
-
-    reactEmojis: ['❤️', '👍', '🔥', '😂', '😮', '👏', '✨', '🎉'],
-
-    
-
-    // Admin phone numbers (without @ or country code symbols)
-
-    admins: ['2348109860102@s.whatsapp.net', '2349071104450@s.whatsapp.net'],
-
-    
-
-    // Logging
-
-    logMessages: false, // Disabled - no chat logs
-
-    logCommands: false,  // Only log commands
-
-    logErrors: true
-
+    reactEmojis: ['❤️', '👍', '🔥', '😂', '😮', '👏', '✨', '🎉']
 };
 
 module.exports = CONFIG;
