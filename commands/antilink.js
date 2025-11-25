@@ -96,7 +96,7 @@ function isWhitelisted(groupId, userId) {
 module.exports = {
     name: 'antilink',
     alias: ['antlink'],
-    admin: true,
+    admin: false,  // Changed to false - will check group admin inside
     description: 'Protect group from unwanted links',
 
     exec: async (sock, from, args, msg, isAdmin) => {
@@ -107,6 +107,17 @@ module.exports = {
             if (!from.endsWith('@g.us')) {
                 return await sock.sendMessage(from, {
                     text: `❌ *This command only works in groups!*`
+                }, { quoted: msg });
+            }
+
+            // Check if user is group admin
+            const sender = msg.key.participant || msg.key.remoteJid;
+            const groupMetadata = await sock.groupMetadata(from);
+            const senderIsAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin;
+
+            if (!senderIsAdmin) {
+                return await sock.sendMessage(from, {
+                    text: `❌ *Admin only!*\n\nThis command can only be used by group admins.`
                 }, { quoted: msg });
             }
 
