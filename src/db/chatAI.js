@@ -11,7 +11,7 @@ const axios = require('axios');
 
 // OPTION 2: Hardcode for testing (NOT RECOMMENDED for production)
 // Uncomment and add your key below for quick testing:
-// const GROQ_API_KEY = 'gsk_your_key_here'; // ⚠️ Replace with your actual key
+const GROQ_API_KEY = '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'; // ⚠️ Replace with your actual key
 
 // Get key from env or hardcoded value
 const GROQ_API_KEY = process.env.GROQ_API_KEY || 'YOUR_KEY_HERE_FOR_TESTING';
