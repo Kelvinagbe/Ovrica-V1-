@@ -12,6 +12,7 @@ module.exports = {
             const settings = chatAI.getSettings();
             const action = args[0]?.toLowerCase();
 
+            // Show status if no action provided
             if (!action) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ AI CHAT ⌟* ❏\n` +
@@ -19,46 +20,12 @@ module.exports = {
                         `├◆ 🤖 *AI Chat Mode*\n` +
                         `├◆ 📊 *Status:* ${settings.enabled ? '✅ ON' : '❌ OFF'}\n` +
                         `├◆ 💬 *Messages:* ${settings.messageCount}\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `┌ ❏ ◆ *⌜HOW IT WORKS⌟* ◆\n` +
-                        `│\n` +
-                        `├◆ 💬 *In Private Chats (DM):*\n` +
-                        `├◆    Bot responds to ALL messages\n` +
-                        `│\n` +
-                        `├◆ 👥 *In Groups:*\n` +
-                        `├◆    Bot responds ONLY when you\n` +
-                        `├◆    REPLY to bot's message\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `┌ ❏ ◆ *⌜COMMANDS⌟* ◆\n` +
+                        `├◆ 👥 *Conversations:* ${settings.conversationHistory.size}\n` +
                         `│\n` +
                         `├◆ 🟢 *Enable:* /chatai on\n` +
                         `├◆ 🔴 *Disable:* /chatai off\n` +
-                        `├◆ 🗑️ *Clear history:* /chatai clear\n` +
+                        `├◆ 🗑️ *Clear:* /chatai clear\n` +
                         `├◆ 📊 *Status:* /chatai status\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `┌ ❏ ◆ *⌜EXAMPLES⌟* ◆\n` +
-                        `│\n` +
-                        `├◆ 💬 *Private Chat:*\n` +
-                        `├◆    Just message: "Hey what's up?"\n` +
-                        `├◆    Bot replies automatically\n` +
-                        `│\n` +
-                        `├◆ 👥 *In Group:*\n` +
-                        `├◆    1. Bot sends a message\n` +
-                        `├◆    2. You REPLY to it\n` +
-                        `├◆    3. Bot responds to your reply\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `┌ ❏ ◆ *⌜FEATURES⌟* ◆\n` +
-                        `│\n` +
-                        `├◆ • Chats like a real person\n` +
-                        `├◆ • Remembers conversation context\n` +
-                        `├◆ • Natural, friendly responses\n` +
-                        `├◆ • No spam in groups\n` +
-                        `│\n` +
-                        `├◆ 🔧 *Powered by:* Groq AI (Llama 3.3)\n` +
                         `│\n` +
                         `└ ❏\n` +
                         `> Powered by 🎭Kelvin🎭`,
@@ -77,25 +44,23 @@ module.exports = {
                 }, { quoted: msg });
             }
 
+            // Enable AI chat
             if (action === 'on') {
                 chatAI.updateSettings({ enabled: true });
 
                 await sock.sendMessage(from, {
                     text: `✅ *AI Chat Mode Enabled!*\n\n` +
-                        `🤖 I'll now chat naturally like a human\n\n` +
-                        `📍 *How it works:*\n` +
-                        `💬 *Private Chat:* I respond to ALL messages\n` +
-                        `👥 *Groups:* I respond ONLY when you REPLY to my message\n\n` +
-                        `🧠 I'll remember our conversation\n` +
-                        `🎯 No spam - clean group chats!\n\n` +
-                        `*Try in DM:* "Hey, how's it going?"\n` +
-                        `*Try in Group:* Reply to any of my messages!`
+                        `🤖 I'll now chat naturally\n\n` +
+                        `💬 *DM:* Responds to all messages\n` +
+                        `👥 *Groups:* Reply/Mention/Tag me\n\n` +
+                        `🧠 Conversation memory active`
                 }, { quoted: msg });
 
                 console.log('🤖 AI Chat mode ENABLED');
                 return;
             }
 
+            // Disable AI chat
             if (action === 'off') {
                 chatAI.updateSettings({ enabled: false });
 
@@ -110,30 +75,31 @@ module.exports = {
                 return;
             }
 
+            // Clear conversation history
             if (action === 'clear') {
-                const userId = from.split('@')[0];
                 chatAI.clearHistory(from);
 
                 await sock.sendMessage(from, {
                     text: `🗑️ *Conversation history cleared!*\n\n` +
                         `🆕 Starting fresh conversation\n` +
-                        `💬 I won't remember previous messages`
+                        `💬 Previous messages forgotten`
                 }, { quoted: msg });
 
-                console.log(`🗑️ Cleared history for ${userId}`);
+                console.log(`🗑️ Cleared history for ${from}`);
                 return;
             }
 
+            // Show detailed status
             if (action === 'status') {
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ AI CHAT STATUS ⌟* ❏\n` +
                         `│\n` +
                         `├◆ 📊 *Status:* ${settings.enabled ? '✅ ACTIVE' : '❌ INACTIVE'}\n` +
-                        `├◆ 💬 *Messages Processed:* ${settings.messageCount}\n` +
-                        `├◆ 👥 *Active Conversations:* ${settings.conversationHistory.size}\n` +
-                        `├◆ 🕐 *Bot Uptime:* ${Math.floor(process.uptime() / 60)}m\n` +
+                        `├◆ 💬 *Messages:* ${settings.messageCount}\n` +
+                        `├◆ 👥 *Conversations:* ${settings.conversationHistory.size}\n` +
+                        `├◆ 🕐 *Uptime:* ${Math.floor(process.uptime() / 60)}m\n` +
                         `├◆ 🔧 *AI Model:* Llama 3.3 70B\n` +
-                        `├◆ 🚀 *Provider:* Groq (Fast & Free)\n` +
+                        `├◆ 🚀 *Provider:* Groq\n` +
                         `│\n` +
                         `└ ❏\n` +
                         `> Powered by 🎭Kelvin🎭`
