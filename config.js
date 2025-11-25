@@ -72,7 +72,7 @@ botMode: 'public',
 
     // Admin phone numbers (without @ or country code symbols)
 
-    admins: ['2348109860102'],
+    admins: ['2348109860102', '2349071104450@s.whatsapp.net'],
 
     
 
