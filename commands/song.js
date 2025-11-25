@@ -1,11 +1,13 @@
 // commands/song.js - Fixed YouTube Song Downloader
-// Install: npm install @distube/ytdl-core yt-search
+// Install: npm install @distube/ytdl-core play-dl
+// OR: npm install @distube/ytdl-core yt-search
 
 const fs = require('fs');
 const path = require('path');
 
 // Lazy load dependencies to prevent startup errors
-let yts, ytdl;
+let ytdl, searchModule;
+let usePlayDl = false;
 
 // Store user selections temporarily
 const userSelections = new Map();
@@ -21,17 +23,33 @@ module.exports = {
             console.log('📝 Args:', args);
 
             // Load dependencies only when needed
-            if (!yts || !ytdl) {
+            if (!searchModule || !ytdl) {
                 try {
-                    yts = require('yt-search');
                     ytdl = require('@distube/ytdl-core');
+                    
+                    // Try play-dl first, fallback to yt-search
+                    try {
+                        searchModule = require('play-dl');
+                        usePlayDl = true;
+                        console.log('✅ Using play-dl for search');
+                    } catch {
+                        searchModule = require('yt-search');
+                        usePlayDl = false;
+                        console.log('✅ Using yt-search for search');
+                    }
+                    
                     console.log('✅ Dependencies loaded');
                 } catch (error) {
                     console.error('❌ Dependency error:', error.message);
+                    
+                    let missingPackages = [];
+                    if (!ytdl) missingPackages.push('@distube/ytdl-core');
+                    if (!searchModule) missingPackages.push('yt-search OR play-dl');
+                    
                     return await sock.sendMessage(from, {
                         text: `❌ *Missing Dependencies*\n\n` +
                             `📦 Please install:\n` +
-                            `npm install @distube/ytdl-core yt-search\n\n` +
+                            `npm install ${missingPackages.join(' ')}\n\n` +
                             `Error: ${error.message}`
                     }, { quoted: msg });
                 }
@@ -108,19 +126,49 @@ module.exports = {
             }, { quoted: msg });
 
             // Search YouTube
-            const search = await yts(songName);
-            const video = search.videos[0];
-
-            if (!video) {
-                return await sock.sendMessage(from, {
-                    text: `❌ *No results found!*\n\n` +
-                        `📝 Try:\n` +
-                        `• Different song name\n` +
-                        `• Add artist name\n` +
-                        `• Check spelling\n\n` +
-                        `Example: /song Faded Alan Walker`,
-                    edit: searchMsg.key
-                });
+            let video;
+            
+            if (usePlayDl) {
+                // Using play-dl
+                const results = await searchModule.search(songName, { limit: 1, source: { youtube: 'video' } });
+                if (!results || results.length === 0) {
+                    return await sock.sendMessage(from, {
+                        text: `❌ *No results found!*\n\n` +
+                            `📝 Try:\n` +
+                            `• Different song name\n` +
+                            `• Add artist name\n` +
+                            `• Check spelling\n\n` +
+                            `Example: /song Faded Alan Walker`,
+                        edit: searchMsg.key
+                    });
+                }
+                
+                const result = results[0];
+                video = {
+                    title: result.title,
+                    url: result.url,
+                    thumbnail: result.thumbnails[0]?.url || 'https://i.ibb.co/0FksjQz/icon.jpg',
+                    timestamp: `${Math.floor(result.durationInSec / 60)}:${(result.durationInSec % 60).toString().padStart(2, '0')}`,
+                    author: { name: result.channel?.name || 'Unknown' },
+                    views: result.views || 0,
+                    ago: result.uploadedAt || 'Unknown'
+                };
+            } else {
+                // Using yt-search
+                const search = await searchModule(songName);
+                video = search.videos[0];
+                
+                if (!video) {
+                    return await sock.sendMessage(from, {
+                        text: `❌ *No results found!*\n\n` +
+                            `📝 Try:\n` +
+                            `• Different song name\n` +
+                            `• Add artist name\n` +
+                            `• Check spelling\n\n` +
+                            `Example: /song Faded Alan Walker`,
+                        edit: searchMsg.key
+                    });
+                }
             }
 
             console.log(`✅ Found: ${video.title}`);
