@@ -90,17 +90,28 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         // AI CHAT INTEGRATION (SMART TRIGGERS)
         // ============================================
         if (!isCommand && text && !isOwner) {
+            // Debug: Log message details
+            console.log(`📩 Message from: ${isGroup ? 'GROUP' : 'DM'}`);
+            console.log(`📝 Text: ${text.substring(0, 50)}`);
+            
             // Check if bot should respond with AI
             const shouldRespondWithAI = checkIfShouldRespondWithAI(msg, from, isGroup, sock);
             
             if (shouldRespondWithAI) {
+                console.log('✅ AI should respond');
+                
                 // Try AI chat
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
                 
                 if (aiHandled) {
+                    console.log('✅ AI handled the message');
                     // AI handled the message, stop processing
                     return;
+                } else {
+                    console.log('⚠️ AI did not handle the message (might be disabled)');
                 }
+            } else {
+                console.log('❌ AI should NOT respond (no trigger)');
             }
         }
 
@@ -133,43 +144,60 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
 
     // 2. In GROUPS - Check for Reply, Mention, or Tag
     
-    // Get bot's JID
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net' || sock.user?.id;
-    
-    // Check if bot is MENTIONED (@bot)
-    const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-    if (mentionedJids.includes(botJid)) {
-        console.log('🤖 AI Trigger: Bot mentioned in group (@bot)');
-        return true;
-    }
-
-    // Check if REPLYING to bot's message
-    const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    const quotedParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
-    const isFromMe = msg.message?.extendedTextMessage?.contextInfo?.fromMe;
-    
-    const isReplyToBot = quotedParticipant === botJid || isFromMe === true;
-    
-    if (quotedMsg && isReplyToBot) {
-        console.log('🤖 AI Trigger: Reply to bot\'s message in group');
-        return true;
-    }
-
-    // Check if message TEXT contains bot mention/tag
-    const messageText = extractMessageText(msg);
-    const botNumber = sock.user?.id?.split(':')[0];
-    
-    if (messageText && botNumber) {
-        // Check for @botNumber format
-        if (messageText.includes(`@${botNumber}`)) {
-            console.log('🤖 AI Trigger: Bot tagged in message text');
+    try {
+        // Get bot's JID in multiple formats
+        const botNumber = sock.user?.id?.split(':')[0];
+        const botJid = `${botNumber}@s.whatsapp.net`;
+        
+        // Check if bot is MENTIONED (@bot)
+        const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        
+        // Check all possible bot JID formats
+        const isMentioned = mentionedJids.some(jid => 
+            jid === botJid || 
+            jid.split('@')[0] === botNumber ||
+            jid.includes(botNumber)
+        );
+        
+        if (isMentioned) {
+            console.log('🤖 AI Trigger: Bot mentioned in group (@bot)');
             return true;
         }
-    }
 
-    // Don't respond to other group messages
-    console.log('🤖 AI Skip: Group message (no trigger)');
-    return false;
+        // Check if REPLYING to bot's message
+        const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+        
+        if (contextInfo) {
+            const quotedMsg = contextInfo.quotedMessage;
+            const quotedParticipant = contextInfo.participant;
+            const isFromMe = contextInfo.fromMe;
+            
+            // Check if replying to bot
+            if (quotedMsg && (isFromMe === true || quotedParticipant === botJid || quotedParticipant?.includes(botNumber))) {
+                console.log('🤖 AI Trigger: Reply to bot\'s message in group');
+                return true;
+            }
+        }
+
+        // Check if message TEXT contains bot mention/tag
+        const messageText = extractMessageText(msg);
+        
+        if (messageText && botNumber) {
+            // Check for @botNumber format in text
+            if (messageText.includes(`@${botNumber}`)) {
+                console.log('🤖 AI Trigger: Bot tagged in message text');
+                return true;
+            }
+        }
+
+        // Don't respond to other group messages
+        console.log('🤖 AI Skip: Group message (no trigger detected)');
+        return false;
+        
+    } catch (error) {
+        console.error('❌ AI Trigger check error:', error);
+        return false;
+    }
 }
 
 // ============================================
