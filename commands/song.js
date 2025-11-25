@@ -55,7 +55,25 @@ module.exports = {
                 }
             }
 
-            // Check if user is selecting download type (1 for audio, 2 for video)
+            // Check if this is a reply to a song selection message
+            const quotedMsg = msg.message?.extendedTextMessage?.contextInfo;
+            if (quotedMsg && args.length === 1 && (args[0] === '1' || args[0] === '2')) {
+                console.log('🎯 User replied with option:', args[0]);
+                
+                const selection = userSelections.get(from);
+                console.log('📦 Selection found:', selection ? 'YES' : 'NO');
+
+                if (selection) {
+                    const downloadType = args[0] === '1' ? 'audio' : 'video';
+                    console.log('⬇️ Starting download:', downloadType);
+                    
+                    await downloadMedia(sock, from, msg, selection.video, downloadType, ytdl);
+                    userSelections.delete(from);
+                    return;
+                }
+            }
+
+            // Check if user is selecting download type (just 1 or 2, without /song)
             if (args.length === 1 && (args[0] === '1' || args[0] === '2')) {
                 console.log('🎯 User selected option:', args[0]);
                 
@@ -67,7 +85,7 @@ module.exports = {
                         text: `❌ *No song selected!*\n\n` +
                             `📝 First search for a song:\n` +
                             `/song [song name]\n\n` +
-                            `Then choose: /song 1 or /song 2`
+                            `Then reply with: 1 or 2`
                     }, { quoted: msg });
                 }
 
@@ -75,7 +93,7 @@ module.exports = {
                 console.log('⬇️ Starting download:', downloadType);
                 
                 await downloadMedia(sock, from, msg, selection.video, downloadType, ytdl);
-                userSelections.delete(from); // Clear selection
+                userSelections.delete(from);
                 return;
             }
 
@@ -93,8 +111,9 @@ module.exports = {
                         `├◆    /song [song name]\n` +
                         `│\n` +
                         `├◆ 📝 *Step 2 - Choose:*\n` +
-                        `├◆    /song 1 = Audio (MP3)\n` +
-                        `├◆    /song 2 = Video (MP4)\n` +
+                        `├◆    Reply with: 1 or 2\n` +
+                        `├◆    1 = Audio (MP3)\n` +
+                        `├◆    2 = Video (MP4)\n` +
                         `│\n` +
                         `└ ❏\n` +
                         `┌ ❏ ◆ *⌜EXAMPLES⌟* ◆\n` +
@@ -198,43 +217,79 @@ module.exports = {
             // Clear old selections (older than 5 minutes)
             const now = Date.now();
             for (const [key, value] of userSelections.entries()) {
-                if (now - value.timestamp > 300000) { // 5 minutes
+                if (now - value.timestamp > 300000) {
                     userSelections.delete(key);
                 }
             }
 
-            // Send song info and ask for choice
-            await sock.sendMessage(from, {
-                text: `┌ ❏ *⌜ SONG FOUND ⌟* ❏\n` +
-                    `│\n` +
-                    `├◆ 🎵 *Title:* ${video.title}\n` +
-                    `├◆ 👤 *Artist:* ${video.author.name}\n` +
-                    `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
-                    `├◆ 👁️ *Views:* ${video.views.toLocaleString()}\n` +
-                    `├◆ 📅 *Uploaded:* ${video.ago}\n` +
-                    `│\n` +
-                    `└ ❏\n` +
-                    `┌ ❏ ◆ *⌜CHOOSE FORMAT⌟* ◆\n` +
-                    `│\n` +
-                    `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
-                    `├◆ 2️⃣ *Video* (MP4) - With video\n` +
-                    `│\n` +
-                    `├◆ 📝 Send: /song 1 or /song 2\n` +
-                    `│\n` +
-                    `└ ❏\n` +
-                    `> Powered by 🎭Kelvin🎭`,
-                contextInfo: {
-                    externalAdReply: {
-                        title: video.title,
-                        body: `${video.author.name} • ${video.timestamp}`,
-                        thumbnailUrl: video.thumbnail,
-                        sourceUrl: video.url,
-                        mediaType: 1,
-                        renderLargerThumbnail: true
+            // Download thumbnail as buffer for better display
+            let thumbnailBuffer = null;
+            try {
+                thumbnailBuffer = await getThumbnail(video.thumbnail);
+                console.log('✅ Thumbnail downloaded');
+            } catch (error) {
+                console.warn('⚠️ Could not download thumbnail:', error.message);
+            }
+
+            // Send image with song info
+            if (thumbnailBuffer) {
+                await sock.sendMessage(from, {
+                    image: thumbnailBuffer,
+                    caption: `┌ ❏ *⌜ SONG FOUND ⌟* ❏\n` +
+                        `│\n` +
+                        `├◆ 🎵 *Title:* ${video.title}\n` +
+                        `├◆ 👤 *Artist:* ${video.author.name}\n` +
+                        `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
+                        `├◆ 👁️ *Views:* ${video.views.toLocaleString()}\n` +
+                        `├◆ 📅 *Uploaded:* ${video.ago}\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `┌ ❏ ◆ *⌜CHOOSE FORMAT⌟* ◆\n` +
+                        `│\n` +
+                        `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
+                        `├◆ 2️⃣ *Video* (MP4) - With video\n` +
+                        `│\n` +
+                        `├◆ 📝 Reply with: 1 or 2\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `> Powered by 🎭Kelvin🎭`
+                }, { quoted: msg });
+            } else {
+                // Fallback to external ad reply if thumbnail fails
+                await sock.sendMessage(from, {
+                    text: `┌ ❏ *⌜ SONG FOUND ⌟* ❏\n` +
+                        `│\n` +
+                        `├◆ 🎵 *Title:* ${video.title}\n` +
+                        `├◆ 👤 *Artist:* ${video.author.name}\n` +
+                        `├◆ ⏱️ *Duration:* ${video.timestamp}\n` +
+                        `├◆ 👁️ *Views:* ${video.views.toLocaleString()}\n` +
+                        `├◆ 📅 *Uploaded:* ${video.ago}\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `┌ ❏ ◆ *⌜CHOOSE FORMAT⌟* ◆\n` +
+                        `│\n` +
+                        `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
+                        `├◆ 2️⃣ *Video* (MP4) - With video\n` +
+                        `│\n` +
+                        `├◆ 📝 Reply with: 1 or 2\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `> Powered by 🎭Kelvin🎭`,
+                    contextInfo: {
+                        externalAdReply: {
+                            title: video.title,
+                            body: `${video.author.name} • ${video.timestamp}`,
+                            thumbnailUrl: video.thumbnail,
+                            sourceUrl: video.url,
+                            mediaType: 1,
+                            renderLargerThumbnail: true
+                        }
                     }
-                },
-                edit: searchMsg.key
-            });
+                }, { quoted: msg });
+            }
+
+            // Delete the searching message
+            await sock.sendMessage(from, { delete: searchMsg.key });
 
         } catch (error) {
             console.error('❌ Song search error:', error);
@@ -314,7 +369,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                             `⚠️ Maximum: 100 MB\n\n` +
                             `💡 Try:\n` +
                             `• Shorter video\n` +
-                            `• Audio only (/song 1)`,
+                            `• Audio only (reply with 1)`,
                         edit: processingMsg.key
                     });
                 }
@@ -337,6 +392,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                         }
                     });
                 } else {
+                    const thumbnailBuffer = await getThumbnail(video.thumbnail);
                     await sock.sendMessage(from, {
                         video: fileBuffer,
                         caption: `┌ ❏ *⌜ VIDEO ⌟* ❏\n` +
@@ -349,7 +405,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                             `└ ❏\n` +
                             `> Powered by 🎭Kelvin🎭`,
                         mimetype: 'video/mp4',
-                        jpegThumbnail: video.thumbnail ? await getThumbnail(video.thumbnail) : null
+                        jpegThumbnail: thumbnailBuffer
                     });
                 }
 
@@ -415,7 +471,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
     }
 }
 
-// Helper function to get thumbnail
+// Helper function to get thumbnail as buffer
 async function getThumbnail(url) {
     try {
         const https = require('https');
@@ -427,7 +483,8 @@ async function getThumbnail(url) {
                 res.on('error', reject);
             }).on('error', reject);
         });
-    } catch {
+    } catch (error) {
+        console.error('Thumbnail download error:', error);
         return null;
     }
-} 
+}
