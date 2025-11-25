@@ -21,6 +21,16 @@ module.exports = {
                         `├◆ 💬 *Messages:* ${settings.messageCount}\n` +
                         `│\n` +
                         `└ ❏\n` +
+                        `┌ ❏ ◆ *⌜HOW IT WORKS⌟* ◆\n` +
+                        `│\n` +
+                        `├◆ 💬 *In Private Chats (DM):*\n` +
+                        `├◆    Bot responds to ALL messages\n` +
+                        `│\n` +
+                        `├◆ 👥 *In Groups:*\n` +
+                        `├◆    Bot responds ONLY when you\n` +
+                        `├◆    REPLY to bot's message\n` +
+                        `│\n` +
+                        `└ ❏\n` +
                         `┌ ❏ ◆ *⌜COMMANDS⌟* ◆\n` +
                         `│\n` +
                         `├◆ 🟢 *Enable:* /chatai on\n` +
@@ -29,13 +39,24 @@ module.exports = {
                         `├◆ 📊 *Status:* /chatai status\n` +
                         `│\n` +
                         `└ ❏\n` +
-                        `┌ ❏ ◆ *⌜INFO⌟* ◆\n` +
+                        `┌ ❏ ◆ *⌜EXAMPLES⌟* ◆\n` +
                         `│\n` +
-                        `├◆ When enabled:\n` +
-                        `├◆ • Bot chats like a real person\n` +
+                        `├◆ 💬 *Private Chat:*\n` +
+                        `├◆    Just message: "Hey what's up?"\n` +
+                        `├◆    Bot replies automatically\n` +
+                        `│\n` +
+                        `├◆ 👥 *In Group:*\n` +
+                        `├◆    1. Bot sends a message\n` +
+                        `├◆    2. You REPLY to it\n` +
+                        `├◆    3. Bot responds to your reply\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `┌ ❏ ◆ *⌜FEATURES⌟* ◆\n` +
+                        `│\n` +
+                        `├◆ • Chats like a real person\n` +
                         `├◆ • Remembers conversation context\n` +
                         `├◆ • Natural, friendly responses\n` +
-                        `├◆ • No robotic replies\n` +
+                        `├◆ • No spam in groups\n` +
                         `│\n` +
                         `├◆ 🔧 *Powered by:* Groq AI (Llama 3.3)\n` +
                         `│\n` +
@@ -61,11 +82,14 @@ module.exports = {
 
                 await sock.sendMessage(from, {
                     text: `✅ *AI Chat Mode Enabled!*\n\n` +
-                        `🤖 I'll now chat naturally like a human\n` +
-                        `💬 Just message me normally\n` +
+                        `🤖 I'll now chat naturally like a human\n\n` +
+                        `📍 *How it works:*\n` +
+                        `💬 *Private Chat:* I respond to ALL messages\n` +
+                        `👥 *Groups:* I respond ONLY when you REPLY to my message\n\n` +
                         `🧠 I'll remember our conversation\n` +
-                        `🎯 No need for commands\n\n` +
-                        `Try saying: "Hey, how's it going?"`
+                        `🎯 No spam - clean group chats!\n\n` +
+                        `*Try in DM:* "Hey, how's it going?"\n` +
+                        `*Try in Group:* Reply to any of my messages!`
                 }, { quoted: msg });
 
                 console.log('🤖 AI Chat mode ENABLED');
