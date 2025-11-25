@@ -1,8 +1,9 @@
 // FILE: utils/message-handler.js
-// ============================================
+// Enhanced message handler with AI chat triggers (DM, Reply, Mention)
+
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
-const chatAI = require('../src/db/chatAI'); // ✅ ADDED: AI Chat integration
+const chatAI = require('../src/db/chatAI');
 
 // Import state from index
 let welcomedUsers, statusViewed;
@@ -86,7 +87,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         }
 
         // ============================================
-        // ✅ NEW: AI CHAT INTEGRATION (SMART TRIGGERS)
+        // AI CHAT INTEGRATION (SMART TRIGGERS)
         // ============================================
         if (!isCommand && text && !isOwner) {
             // Check if bot should respond with AI
@@ -97,14 +98,13 @@ async function handleMessage(messages, sock, CONFIG, commands) {
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
                 
                 if (aiHandled) {
-                    // AI handled the message, no need to continue
+                    // AI handled the message, stop processing
                     return;
                 }
             }
-            // If AI is disabled or not triggered, continue normally
         }
 
-        // Execute command
+        // Execute command if it's a command
         if (isCommand && text) {
             await executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands);
         }
@@ -117,31 +117,37 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 }
 
 // ============================================
-// HELPER FUNCTIONS
+// AI TRIGGER DETECTION
 // ============================================
 
 /**
  * Check if bot should respond with AI
- * @param {object} msg - Message object
- * @param {string} from - Chat JID
- * @param {boolean} isGroup - Is group chat
- * @param {object} sock - WhatsApp socket
- * @returns {boolean} - Should respond
+ * Triggers: DM, Reply to bot, Mention bot, Tag bot
  */
 function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
-    // 1. Always respond in PRIVATE CHATS (DM)
+    // 1. ALWAYS respond in PRIVATE CHATS (DM)
     if (!isGroup) {
         console.log('🤖 AI Trigger: Private chat (DM)');
         return true;
     }
 
-    // 2. In GROUPS, ONLY respond if message is REPLY to bot's message
+    // 2. In GROUPS - Check for Reply, Mention, or Tag
+    
+    // Get bot's JID
+    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net' || sock.user?.id;
+    
+    // Check if bot is MENTIONED (@bot)
+    const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    if (mentionedJids.includes(botJid)) {
+        console.log('🤖 AI Trigger: Bot mentioned in group (@bot)');
+        return true;
+    }
+
+    // Check if REPLYING to bot's message
     const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const quotedParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
     const isFromMe = msg.message?.extendedTextMessage?.contextInfo?.fromMe;
     
-    // Check if replying to bot
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net' || sock.user?.id;
     const isReplyToBot = quotedParticipant === botJid || isFromMe === true;
     
     if (quotedMsg && isReplyToBot) {
@@ -149,10 +155,26 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
         return true;
     }
 
-    // Don't respond to other group messages (no tag, no reply)
-    console.log('🤖 AI Skip: Group message (not a reply to bot)');
+    // Check if message TEXT contains bot mention/tag
+    const messageText = extractMessageText(msg);
+    const botNumber = sock.user?.id?.split(':')[0];
+    
+    if (messageText && botNumber) {
+        // Check for @botNumber format
+        if (messageText.includes(`@${botNumber}`)) {
+            console.log('🤖 AI Trigger: Bot tagged in message text');
+            return true;
+        }
+    }
+
+    // Don't respond to other group messages
+    console.log('🤖 AI Skip: Group message (no trigger)');
     return false;
 }
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
 /**
  * Extract text from various message types
@@ -241,19 +263,7 @@ function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
  */
 async function sendWelcomeMessage(sock, jid, userName, CONFIG) {
     welcomedUsers.add(jid);
-
-    try {
-        const welcomeText = 
-            `┌ ❏ *⌜ WELCOME ⌟* ❏\n│\n` +
-            `├◆ 👋 Hello ${userName}!\n` +
-            `├◆ 🤖 I'm ${CONFIG.botName}\n` +
-            `├◆ ✨ Type /menu to get started\n│\n` +
-            `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-
-        await sock.sendMessage(jid, { text: welcomeText });
-    } catch (error) {
-        // Silent fail
-    }
+    // Welcome message removed as requested
 }
 
 /**
@@ -296,9 +306,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
 
         if (!commands[command]) return;
 
-        // ============================================
         // OWNER PERMISSION CHECK
-        // ============================================
         if (commands[command].owner && !isOwner) {
             const deniedText = 
                 `┌ ❏ *⌜ OWNER ONLY ⌟* ❏\n│\n` +
@@ -333,9 +341,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
             return;
         }
 
-        // ============================================
         // ADMIN PERMISSION CHECK
-        // ============================================
         if (commands[command].admin && !admin && !isOwner) {
             if (CONFIG.botMode === 'public') {
                 const deniedText = 
@@ -371,9 +377,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
             return;
         }
 
-        // ============================================
         // EXECUTE COMMAND
-        // ============================================
         if (CONFIG.logCommands) {
             const userType = isOwner ? '(Owner)' : (admin ? '(Admin)' : '(User)');
             console.log(`⚡ /${command} ${userType}`);
