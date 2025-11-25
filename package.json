@@ -84,7 +84,11 @@
 
     "pino": "^8.19.0",
 
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+
+    "yt-search": "^2.13.1",
+
+    "ytdl-core": "^4.11.5"
 
   },
 
@@ -103,3 +107,4 @@
   }
 
 }
+
