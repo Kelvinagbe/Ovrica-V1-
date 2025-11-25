@@ -1,0 +1,12 @@
+//=============================
+{
+  "botMode": "public",
+  "autoTyping": true,
+  "autoViewStatus": true,
+  "alwaysOnline": true,
+  "autoReact": false,
+  "sendWelcome": false,
+  "logMessages": false,
+  "logCommands": false,
+  "logErrors": true
+}
