@@ -8,7 +8,7 @@ const axios = require('axios');
 // OPTION 1: Use environment variable (RECOMMENDED for production)
 // Add to .env file: GROQ_API_KEY=gsk_your_key_here
 // Then use: process.env.GROQ_API_KEY
-
+ 
 // OPTION 2: Hardcode for testing (NOT RECOMMENDED for production)
 // Uncomment and add your key below for quick testing:
 const GROQ_API_KEY = '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'; // ⚠️ Replace with your actual key
