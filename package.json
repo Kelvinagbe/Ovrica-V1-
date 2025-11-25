@@ -80,6 +80,8 @@
 
   "dependencies": {
 
+    "@distube/ytdl-core": "^4.16.12",
+
     "@whiskeysockets/baileys": "^6.7.9",
 
     "pino": "^8.19.0",
