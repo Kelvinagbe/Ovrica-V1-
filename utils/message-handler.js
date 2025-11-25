@@ -1,17 +1,17 @@
 // FILE: utils/message-handler.js
-// Enhanced message handler with AI chat triggers (DM, Reply, Mention)
+// Enhanced message handler with AI chat triggers
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
-// Import state from index
+// Import state
 let welcomedUsers, statusViewed;
 try {
     const state = require('../index');
     welcomedUsers = state.welcomedUsers || new Set();
     statusViewed = state.statusViewed || new Set();
-} catch (error) {
+} catch {
     welcomedUsers = new Set();
     statusViewed = new Set();
 }
@@ -35,7 +35,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
-        // Extract sender information
+        // Extract sender info
         const sender = from.endsWith('@g.us') 
             ? (msg.key.participant || from) 
             : from;
@@ -47,7 +47,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         const userName = getUserName(msg);
         const admin = isAdmin(sender, CONFIG.admins);
 
-        // Save user session (excluding owner)
+        // Save user session (exclude owner)
         if (!isOwner) {
             addOrUpdateUser(from, userName, isGroup);
         }
@@ -55,12 +55,12 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         // Extract message text
         const text = extractMessageText(msg);
 
-        // Check for txt2img session response
+        // Handle txt2img session
         if (await handleTxt2ImgSession(sock, from, msg, text, userName)) {
             return;
         }
 
-        // Determine if this is a command
+        // Check if command
         const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
 
         // Log owner commands
@@ -76,53 +76,39 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
-        // Send welcome message (first time users)
+        // Welcome new users
         if (shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner)) {
-            await sendWelcomeMessage(sock, from, userName, CONFIG);
+            welcomedUsers.add(from);
         }
 
-        // Auto-react to messages
+        // Auto-react
         if (shouldAutoReact(CONFIG, admin, isOwner)) {
             await autoReactToMessage(sock, from, msg, CONFIG);
         }
 
         // ============================================
-        // AI CHAT INTEGRATION (SMART TRIGGERS)
+        // AI CHAT INTEGRATION
         // ============================================
         if (!isCommand && text && !isOwner) {
-            // Debug: Log message details
-            console.log(`📩 Message from: ${isGroup ? 'GROUP' : 'DM'}`);
-            console.log(`📝 Text: ${text.substring(0, 50)}`);
-            
-            // Check if bot should respond with AI
             const shouldRespondWithAI = checkIfShouldRespondWithAI(msg, from, isGroup, sock);
-            
+
             if (shouldRespondWithAI) {
-                console.log('✅ AI should respond');
-                
-                // Try AI chat
+                console.log('✅ AI responding');
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
-                
                 if (aiHandled) {
-                    console.log('✅ AI handled the message');
-                    // AI handled the message, stop processing
                     return;
-                } else {
-                    console.log('⚠️ AI did not handle the message (might be disabled)');
                 }
-            } else {
-                console.log('❌ AI should NOT respond (no trigger)');
             }
         }
 
-        // Execute command if it's a command
+        // Execute command
         if (isCommand && text) {
             await executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands);
         }
 
     } catch (error) {
         if (CONFIG.logErrors) {
-            console.error('❌ Message handler error:', error.message);
+            console.error('❌ Handler error:', error.message);
         }
     }
 }
@@ -130,72 +116,51 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 // ============================================
 // AI TRIGGER DETECTION
 // ============================================
-
-/**
- * Check if bot should respond with AI
- * Triggers: DM, Reply to bot, Mention bot, Tag bot
- */
 function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
-    // 1. ALWAYS respond in PRIVATE CHATS (DM)
+    // Always respond in DMs
     if (!isGroup) {
-        console.log('🤖 AI Trigger: Private chat (DM)');
+        console.log('🤖 AI: DM');
         return true;
     }
 
-    // 2. In GROUPS - Check for Reply, Mention, or Tag
-    
     try {
-        // Get bot's JID in multiple formats
         const botNumber = sock.user?.id?.split(':')[0];
         const botJid = `${botNumber}@s.whatsapp.net`;
-        
-        // Check if bot is MENTIONED (@bot)
+
+        // Check mentions
         const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        
-        // Check all possible bot JID formats
         const isMentioned = mentionedJids.some(jid => 
-            jid === botJid || 
-            jid.split('@')[0] === botNumber ||
-            jid.includes(botNumber)
+            jid === botJid || jid.includes(botNumber)
         );
-        
+
         if (isMentioned) {
-            console.log('🤖 AI Trigger: Bot mentioned in group (@bot)');
+            console.log('🤖 AI: Mentioned');
             return true;
         }
 
-        // Check if REPLYING to bot's message
+        // Check replies to bot
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
-        
         if (contextInfo) {
-            const quotedMsg = contextInfo.quotedMessage;
             const quotedParticipant = contextInfo.participant;
             const isFromMe = contextInfo.fromMe;
-            
-            // Check if replying to bot
-            if (quotedMsg && (isFromMe === true || quotedParticipant === botJid || quotedParticipant?.includes(botNumber))) {
-                console.log('🤖 AI Trigger: Reply to bot\'s message in group');
+
+            if (isFromMe === true || quotedParticipant === botJid || quotedParticipant?.includes(botNumber)) {
+                console.log('🤖 AI: Reply to bot');
                 return true;
             }
         }
 
-        // Check if message TEXT contains bot mention/tag
+        // Check text for bot tag
         const messageText = extractMessageText(msg);
-        
-        if (messageText && botNumber) {
-            // Check for @botNumber format in text
-            if (messageText.includes(`@${botNumber}`)) {
-                console.log('🤖 AI Trigger: Bot tagged in message text');
-                return true;
-            }
+        if (messageText && botNumber && messageText.includes(`@${botNumber}`)) {
+            console.log('🤖 AI: Tagged in text');
+            return true;
         }
 
-        // Don't respond to other group messages
-        console.log('🤖 AI Skip: Group message (no trigger detected)');
         return false;
-        
+
     } catch (error) {
-        console.error('❌ AI Trigger check error:', error);
+        console.error('❌ AI trigger error:', error);
         return false;
     }
 }
@@ -204,9 +169,6 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Extract text from various message types
- */
 function extractMessageText(msg) {
     try {
         return msg.message?.conversation || 
@@ -220,9 +182,6 @@ function extractMessageText(msg) {
     }
 }
 
-/**
- * Handle status view and reaction
- */
 async function handleStatusView(sock, msg, CONFIG) {
     try {
         await sock.readMessages([msg.key]);
@@ -231,7 +190,6 @@ async function handleStatusView(sock, msg, CONFIG) {
             const emoji = CONFIG.reactEmojis[
                 Math.floor(Math.random() * CONFIG.reactEmojis.length)
             ];
-
             await sock.sendMessage('status@broadcast', {
                 react: { text: emoji, key: msg.key }
             }).catch(() => {});
@@ -240,45 +198,28 @@ async function handleStatusView(sock, msg, CONFIG) {
         if (msg.key.participant) {
             statusViewed.add(msg.key.participant);
         }
-
         console.log('✅ Status viewed');
-    } catch (error) {
-        // Silent fail
-    }
+    } catch {}
 }
 
-/**
- * Handle txt2img session (style selection)
- */
 async function handleTxt2ImgSession(sock, from, msg, text, userName) {
     try {
         const txt2img = require('../commands/txt2img');
-
         if (!txt2img?.userSessions) return false;
 
         const session = txt2img.userSessions.get(from);
-
         if (session && /^[1-5]$/.test(text.trim())) {
-            console.log(`🎨 txt2img style ${text.trim()} from ${userName}`);
-
+            console.log(`🎨 txt2img style ${text.trim()}`);
             txt2img.userSessions.delete(from);
-
             if (txt2img.generateImage) {
                 await txt2img.generateImage(sock, from, msg, session.prompt, text.trim());
             }
-
             return true;
         }
-    } catch (error) {
-        // Silent fail
-    }
-
+    } catch {}
     return false;
 }
 
-/**
- * Check if welcome message should be sent
- */
 function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
     return (CONFIG.botMode === 'public' || admin) && 
            !isGroup && 
@@ -286,17 +227,6 @@ function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
            !isOwner;
 }
 
-/**
- * Send welcome message to new user
- */
-async function sendWelcomeMessage(sock, jid, userName, CONFIG) {
-    welcomedUsers.add(jid);
-    // Welcome message removed as requested
-}
-
-/**
- * Check if message should get auto-react
- */
 function shouldAutoReact(CONFIG, admin, isOwner) {
     return (CONFIG.botMode === 'public' || admin) && 
            CONFIG.autoReact && 
@@ -304,28 +234,19 @@ function shouldAutoReact(CONFIG, admin, isOwner) {
            !isOwner;
 }
 
-/**
- * Auto-react to message
- */
 async function autoReactToMessage(sock, from, msg, CONFIG) {
     try {
         if (CONFIG.reactEmojis?.length > 0) {
             const emoji = CONFIG.reactEmojis[
                 Math.floor(Math.random() * CONFIG.reactEmojis.length)
             ];
-
             await sock.sendMessage(from, {
                 react: { text: emoji, key: msg.key }
             }).catch(() => {});
         }
-    } catch (error) {
-        // Silent fail
-    }
+    } catch {}
 }
 
-/**
- * Execute bot command with permission checks
- */
 async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands) {
     try {
         const parts = text.trim().split(/\s+/);
@@ -334,124 +255,50 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
 
         if (!commands[command]) return;
 
-        // OWNER PERMISSION CHECK
+        // OWNER CHECK
         if (commands[command].owner && !isOwner) {
-            const deniedText = 
-                `┌ ❏ *⌜ OWNER ONLY ⌟* ❏\n│\n` +
-                `├◆ 👑 Restricted to bot owner\n` +
-                `├◆ 🔒 Command: /${command}\n` +
-                `├◆ ⛔ Access denied\n│\n` +
-                `├◆ 💬 Contact: wa.me/${CONFIG.ownerNumber || '2348109860102'}\n│\n` +
-                `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-
             await sock.sendMessage(from, {
-                text: deniedText,
-                contextInfo: {
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: CONFIG.newsletterJid || "120363418958316196@newsletter",
-                        newsletterName: CONFIG.newsletterName || "🎭 Kelvin Tech",
-                        serverMessageId: 200
-                    },
-                    externalAdReply: {
-                        title: "👑 Owner Only",
-                        body: "Restricted Command",
-                        thumbnailUrl: CONFIG.thumbnailUrl || "./icon.jpg",
-                        sourceUrl: CONFIG.channelUrl || "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                        mediaType: 1,
-                        renderLargerThumbnail: false
-                    }
-                }
+                text: `┌ ❏ *⌜ OWNER ONLY ⌟* ❏\n│\n` +
+                    `├◆ 👑 Restricted to bot owner\n` +
+                    `├◆ 🔒 Command: /${command}\n` +
+                    `├◆ ⛔ Access denied\n│\n` +
+                    `└ ❏\n> 🎭${CONFIG.botName}🎭`
             }, { quoted: msg }).catch(() => {});
-
-            console.log(`👑 Blocked owner command from: ${getUserName(msg)}`);
             return;
         }
 
-        // ADMIN PERMISSION CHECK
+        // ADMIN CHECK
         if (commands[command].admin && !admin && !isOwner) {
             if (CONFIG.botMode === 'public') {
-                const deniedText = 
-                    `┌ ❏ *⌜ ACCESS DENIED ⌟* ❏\n│\n` +
-                    `├◆ ⛔ Admin only command\n` +
-                    `├◆ 🔒 Command: /${command}\n` +
-                    `├◆ 🚫 Unauthorized access\n│\n` +
-                    `├◆ 💬 Contact: wa.me/${CONFIG.ownerNumber || '2348109860102'}\n│\n` +
-                    `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-
                 await sock.sendMessage(from, {
-                    text: deniedText,
-                    contextInfo: {
-                        forwardingScore: 999,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: CONFIG.newsletterJid || "120363418958316196@newsletter",
-                            newsletterName: CONFIG.newsletterName || "🎭 Kelvin Tech",
-                            serverMessageId: 200
-                        },
-                        externalAdReply: {
-                            title: "🔒 Access Denied",
-                            body: "Admin Only Command",
-                            thumbnailUrl: CONFIG.thumbnailUrl || "./icon.jpg",
-                            sourceUrl: CONFIG.channelUrl || "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                            mediaType: 1,
-                            renderLargerThumbnail: false
-                        }
-                    }
+                    text: `┌ ❏ *⌜ ACCESS DENIED ⌟* ❏\n│\n` +
+                        `├◆ ⛔ Admin only\n` +
+                        `├◆ 🔒 Command: /${command}\n│\n` +
+                        `└ ❏\n> 🎭${CONFIG.botName}🎭`
                 }, { quoted: msg }).catch(() => {});
             }
-            console.log(`🔐 Blocked admin command from: ${getUserName(msg)}`);
             return;
         }
 
-        // EXECUTE COMMAND
+        // EXECUTE
         if (CONFIG.logCommands) {
-            const userType = isOwner ? '(Owner)' : (admin ? '(Admin)' : '(User)');
-            console.log(`⚡ /${command} ${userType}`);
+            const type = isOwner ? '(Owner)' : (admin ? '(Admin)' : '(User)');
+            console.log(`⚡ /${command} ${type}`);
         }
 
         await commands[command].exec(sock, from, args, msg, admin || isOwner);
 
     } catch (error) {
         console.error(`❌ Command error [${command}]:`, error.message);
-
-        try {
-            const errorText = 
-                `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
+        
+        await sock.sendMessage(from, {
+            text: `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
                 `├◆ ❌ Command failed\n` +
                 `├◆ 🔧 Command: /${command}\n` +
-                `├◆ 💥 Error: ${error.message}\n│\n` +
-                `├◆ 💡 Try again or contact support\n│\n` +
-                `└ ❏\n> 🎭${CONFIG.botName}🎭`;
-
-            await sock.sendMessage(from, {
-                text: errorText,
-                contextInfo: {
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: CONFIG.newsletterJid || "120363418958316196@newsletter",
-                        newsletterName: CONFIG.newsletterName || "🎭 Kelvin Tech",
-                        serverMessageId: 200
-                    },
-                    externalAdReply: {
-                        title: "❌ Command Error",
-                        body: `Failed: /${command}`,
-                        thumbnailUrl: CONFIG.thumbnailUrl || "./icon.jpg",
-                        sourceUrl: CONFIG.channelUrl || "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                        mediaType: 1,
-                        renderLargerThumbnail: false
-                    }
-                }
-            }, { quoted: msg }).catch(() => {});
-        } catch {
-            // Silent fail
-        }
+                `├◆ 💥 ${error.message}\n│\n` +
+                `└ ❏\n> 🎭${CONFIG.botName}🎭`
+        }, { quoted: msg }).catch(() => {});
     }
 }
 
-// ============================================
-// EXPORTS
-// ============================================
 module.exports = { handleMessage };
