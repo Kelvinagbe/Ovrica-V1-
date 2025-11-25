@@ -1,9 +1,10 @@
 // FILE: utils/message-handler.js
-// Enhanced message handler with AI chat triggers
+// Enhanced message handler with AI chat triggers and antilink
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
+const antilink = require('../commands/antilink'); // ✅ IMPORT ANTILINK
 
 // Import state
 let welcomedUsers, statusViewed;
@@ -26,6 +27,19 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         const from = msg.key?.remoteJid;
         if (!from) return;
+
+        // ============================================
+        // ✅ CHECK ANTILINK FIRST (before anything else)
+        // ============================================
+        if (from.endsWith('@g.us')) {
+            try {
+                await antilink.handleMessage(sock, msg);
+            } catch (error) {
+                if (CONFIG.logErrors) {
+                    console.error('❌ Antilink error:', error.message);
+                }
+            }
+        }
 
         // Handle status broadcasts
         if (from === 'status@broadcast') {
@@ -316,7 +330,7 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
 
     } catch (error) {
         console.error(`❌ Command error [${command}]:`, error.message);
-        
+
         await sock.sendMessage(from, {
             text: `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
                 `├◆ ❌ Command failed\n` +
