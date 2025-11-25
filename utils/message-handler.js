@@ -1,10 +1,14 @@
 // FILE: utils/message-handler.js
-// Enhanced message handler with AI chat triggers and antilink
+// Enhanced message handler with AI chat triggers and protection systems
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
-const antilink = require('../commands/antilink'); // ✅ IMPORT ANTILINK
+
+// ✅ IMPORT ALL PROTECTION SYSTEMS
+const antilink = require('../commands/antilink');
+const antiswear = require('../commands/antiswear');
+const antispam = require('../commands/antispam');
 
 // Import state
 let welcomedUsers, statusViewed;
@@ -29,14 +33,22 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (!from) return;
 
         // ============================================
-        // ✅ CHECK ANTILINK FIRST (before anything else)
+        // ✅ RUN ALL PROTECTION SYSTEMS (Groups Only)
         // ============================================
         if (from.endsWith('@g.us')) {
             try {
+                // Run antilink protection
                 await antilink.handleMessage(sock, msg);
+                
+                // Run antiswear protection
+                await antiswear.handleMessage(sock, msg);
+                
+                // Run antispam protection
+                await antispam.handleMessage(sock, msg);
+                
             } catch (error) {
                 if (CONFIG.logErrors) {
-                    console.error('❌ Antilink error:', error.message);
+                    console.error('❌ Protection system error:', error.message);
                 }
             }
         }
