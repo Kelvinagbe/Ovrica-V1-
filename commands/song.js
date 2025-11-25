@@ -1,6 +1,5 @@
-// commands/song.js - Fixed YouTube Song Downloader
-// Install: npm install @distube/ytdl-core play-dl
-// OR: npm install @distube/ytdl-core yt-search
+// commands/song.js - Fixed YouTube Song Downloader with Reply Support
+// Install: npm install @distube/ytdl-core yt-search
 
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +20,7 @@ module.exports = {
         try {
             console.log('🎵 Song command executed');
             console.log('📝 Args:', args);
+            console.log('📍 From:', from);
 
             // Load dependencies only when needed
             if (!searchModule || !ytdl) {
@@ -57,18 +57,23 @@ module.exports = {
 
             // Check if user is selecting download type (1 for audio, 2 for video)
             if (args.length === 1 && (args[0] === '1' || args[0] === '2')) {
+                console.log('🎯 User selected option:', args[0]);
+                
                 const selection = userSelections.get(from);
+                console.log('📦 Selection found:', selection ? 'YES' : 'NO');
 
                 if (!selection) {
                     return await sock.sendMessage(from, {
                         text: `❌ *No song selected!*\n\n` +
                             `📝 First search for a song:\n` +
                             `/song [song name]\n\n` +
-                            `Then choose 1 or 2`
+                            `Then choose: /song 1 or /song 2`
                     }, { quoted: msg });
                 }
 
                 const downloadType = args[0] === '1' ? 'audio' : 'video';
+                console.log('⬇️ Starting download:', downloadType);
+                
                 await downloadMedia(sock, from, msg, selection.video, downloadType, ytdl);
                 userSelections.delete(from); // Clear selection
                 return;
@@ -88,9 +93,8 @@ module.exports = {
                         `├◆    /song [song name]\n` +
                         `│\n` +
                         `├◆ 📝 *Step 2 - Choose:*\n` +
-                        `├◆    Reply with 1 or 2\n` +
-                        `├◆    1️⃣ = Audio (MP3)\n` +
-                        `├◆    2️⃣ = Video (MP4)\n` +
+                        `├◆    /song 1 = Audio (MP3)\n` +
+                        `├◆    /song 2 = Video (MP4)\n` +
                         `│\n` +
                         `└ ❏\n` +
                         `┌ ❏ ◆ *⌜EXAMPLES⌟* ◆\n` +
@@ -172,6 +176,7 @@ module.exports = {
             }
 
             console.log(`✅ Found: ${video.title}`);
+            console.log(`🖼️ Thumbnail: ${video.thumbnail}`);
 
             // Check video duration (limit to 10 minutes)
             const durationSeconds = video.timestamp.split(':').reduce((acc, time) => (60 * acc) + +time, 0);
@@ -188,6 +193,7 @@ module.exports = {
 
             // Store selection for this user
             userSelections.set(from, { video, timestamp: Date.now() });
+            console.log(`💾 Stored selection for: ${from}`);
 
             // Clear old selections (older than 5 minutes)
             const now = Date.now();
@@ -213,7 +219,7 @@ module.exports = {
                     `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
                     `├◆ 2️⃣ *Video* (MP4) - With video\n` +
                     `│\n` +
-                    `├◆ 📝 Reply with: /song 1 or /song 2\n` +
+                    `├◆ 📝 Send: /song 1 or /song 2\n` +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`,
@@ -308,7 +314,7 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                             `⚠️ Maximum: 100 MB\n\n` +
                             `💡 Try:\n` +
                             `• Shorter video\n` +
-                            `• Audio only (option 1)`,
+                            `• Audio only (/song 1)`,
                         edit: processingMsg.key
                     });
                 }
@@ -342,7 +348,8 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                             `│\n` +
                             `└ ❏\n` +
                             `> Powered by 🎭Kelvin🎭`,
-                        mimetype: 'video/mp4'
+                        mimetype: 'video/mp4',
+                        jpegThumbnail: video.thumbnail ? await getThumbnail(video.thumbnail) : null
                     });
                 }
 
@@ -405,5 +412,22 @@ async function downloadMedia(sock, from, msg, video, type, ytdl) {
                 `> Powered by 🎭Kelvin🎭`,
             edit: processingMsg.key
         });
+    }
+}
+
+// Helper function to get thumbnail
+async function getThumbnail(url) {
+    try {
+        const https = require('https');
+        return new Promise((resolve, reject) => {
+            https.get(url, (res) => {
+                const chunks = [];
+                res.on('data', chunk => chunks.push(chunk));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', reject);
+            }).on('error', reject);
+        });
+    } catch {
+        return null;
     }
 }
