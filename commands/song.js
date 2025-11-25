@@ -1,9 +1,11 @@
-// commands/song.js - Search songs with video/audio choice
+// commands/song.js - Fixed YouTube Song Downloader
+// Install: npm install @distube/ytdl-core yt-search
 
-const yts = require('yt-search');
-const ytdl = require('ytdl-core');
 const fs = require('fs');
 const path = require('path');
+
+// Lazy load dependencies to prevent startup errors
+let yts, ytdl;
 
 // Store user selections temporarily
 const userSelections = new Map();
@@ -15,8 +17,28 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
+            console.log('🎵 Song command executed');
+            console.log('📝 Args:', args);
+
+            // Load dependencies only when needed
+            if (!yts || !ytdl) {
+                try {
+                    yts = require('yt-search');
+                    ytdl = require('@distube/ytdl-core');
+                    console.log('✅ Dependencies loaded');
+                } catch (error) {
+                    console.error('❌ Dependency error:', error.message);
+                    return await sock.sendMessage(from, {
+                        text: `❌ *Missing Dependencies*\n\n` +
+                            `📦 Please install:\n` +
+                            `npm install @distube/ytdl-core yt-search\n\n` +
+                            `Error: ${error.message}`
+                    }, { quoted: msg });
+                }
+            }
+
             // Check if user is selecting download type (1 for audio, 2 for video)
-            if (args[0] === '1' || args[0] === '2') {
+            if (args.length === 1 && (args[0] === '1' || args[0] === '2')) {
                 const selection = userSelections.get(from);
 
                 if (!selection) {
@@ -29,7 +51,7 @@ module.exports = {
                 }
 
                 const downloadType = args[0] === '1' ? 'audio' : 'video';
-                await downloadMedia(sock, from, msg, selection.video, downloadType);
+                await downloadMedia(sock, from, msg, selection.video, downloadType, ytdl);
                 userSelections.delete(from); // Clear selection
                 return;
             }
@@ -143,7 +165,7 @@ module.exports = {
                     `├◆ 1️⃣ *Audio* (MP3) - Music only\n` +
                     `├◆ 2️⃣ *Video* (MP4) - With video\n` +
                     `│\n` +
-                    `├◆ 📝 Reply with: 1 or 2\n` +
+                    `├◆ 📝 Reply with: /song 1 or /song 2\n` +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`,
@@ -181,7 +203,7 @@ module.exports = {
     }
 };
 
-async function downloadMedia(sock, from, msg, video, type) {
+async function downloadMedia(sock, from, msg, video, type, ytdl) {
     const processingMsg = await sock.sendMessage(from, {
         text: `⏳ *Downloading ${type}...*\n\n` +
             `🎵 ${video.title}\n` +
@@ -191,6 +213,15 @@ async function downloadMedia(sock, from, msg, video, type) {
 
     try {
         console.log(`📥 Downloading ${type}: ${video.url}`);
+
+        // Validate ytdl-core is working
+        if (!ytdl || !ytdl.getInfo) {
+            throw new Error('ytdl-core not properly loaded');
+        }
+
+        // Get video info first to validate
+        const info = await ytdl.getInfo(video.url);
+        console.log('✅ Video info retrieved');
 
         const options = type === 'audio' 
             ? { filter: 'audioonly', quality: 'highestaudio' }
@@ -202,6 +233,7 @@ async function downloadMedia(sock, from, msg, video, type) {
         const tempDir = path.join(__dirname, '../temp');
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
+            console.log('📁 Temp directory created');
         }
 
         const extension = type === 'audio' ? 'mp3' : 'mp4';
@@ -211,6 +243,7 @@ async function downloadMedia(sock, from, msg, video, type) {
 
         stream.pipe(writeStream);
 
+        // Handle download completion
         writeStream.on('finish', async () => {
             console.log(`✅ Downloaded: ${fileName}`);
 
@@ -302,12 +335,15 @@ async function downloadMedia(sock, from, msg, video, type) {
         let errorMsg = error.message;
         let errorSolution = 'Try again';
 
-        if (error.message.includes('403')) {
-            errorMsg = 'Video restricted';
-            errorSolution = 'This video cannot be downloaded';
+        if (error.message.includes('403') || error.message.includes('410')) {
+            errorMsg = 'Video restricted or unavailable';
+            errorSolution = 'This video cannot be downloaded from YouTube';
         } else if (error.message.includes('ENOSPC')) {
             errorMsg = 'No storage space';
             errorSolution = 'Server storage full';
+        } else if (error.message.includes('Sign in')) {
+            errorMsg = 'YouTube sign-in required';
+            errorSolution = 'This video requires authentication';
         }
 
         await sock.sendMessage(from, {
