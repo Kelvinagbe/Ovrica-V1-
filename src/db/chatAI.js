@@ -2,6 +2,29 @@
 
 const axios = require('axios');
 
+// ============================================
+// 🔑 API KEY CONFIGURATION
+// ============================================
+// OPTION 1: Use environment variable (RECOMMENDED for production)
+// Add to .env file: GROQ_API_KEY=gsk_your_key_here
+// Then use: process.env.GROQ_API_KEY
+
+// OPTION 2: Hardcode for testing (NOT RECOMMENDED for production)
+// Uncomment and add your key below for quick testing:
+// const GROQ_API_KEY = 'gsk_your_key_here'; // ⚠️ Replace with your actual key
+
+// Get key from env or hardcoded value
+const GROQ_API_KEY = process.env.GROQ_API_KEY || 'YOUR_KEY_HERE_FOR_TESTING';
+
+// Validate API key
+if (!GROQ_API_KEY || GROQ_API_KEY === 'YOUR_KEY_HERE_FOR_TESTING') {
+    console.warn('⚠️  WARNING: GROQ_API_KEY not configured!');
+    console.warn('   Get your free key from: https://console.groq.com');
+    console.warn('   Then either:');
+    console.warn('   1. Add to .env file: GROQ_API_KEY=gsk_your_key');
+    console.warn('   2. Or replace YOUR_KEY_HERE_FOR_TESTING in chatAI.js');
+}
+
 const settings = {
     enabled: false,
     messageCount: 0,
@@ -66,7 +89,7 @@ async function chatWithAI(message, userId) {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                    'Authorization': `Bearer ${GROQ_API_KEY}`,
                     'Content-Type': 'application/json'
                 }
             }
