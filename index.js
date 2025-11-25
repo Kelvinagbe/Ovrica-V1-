@@ -16,7 +16,8 @@ const commands = require('./commands');
 const { initializeBot } = require('./utils/bot-manager');
 const { handleMessage } = require('./utils/message-handler');
 const { handleConnection } = require('./utils/connection-handler');
-const statusListener = require('./statusListener'); // ✅ ADDED
+const statusListener = require('./statusListener');
+const antilink = require('./commands/antilink'); // ✅ IMPORT ANTILINK
 
 // ============================================
 // GLOBAL STATE - PROPERLY INITIALIZED
@@ -58,8 +59,6 @@ async function connectToWhatsApp() {
             defaultQueryTimeoutMs: 60000,
             connectTimeoutMs: 90000,
             keepAliveIntervalMs: 30000,
-            // ✅ REMOVED - This was blocking status messages!
-            // shouldIgnoreJid: jid => jid === 'status@broadcast',
             generateHighQualityLinkPreview: false
         });
 
@@ -69,8 +68,8 @@ async function connectToWhatsApp() {
         // Handle connection updates
         sock.ev.on('connection.update', (update) => {
             handleConnection(update, sock, connectToWhatsApp, CONFIG);
-            
-            // ✅ ADDED - Initialize status listener when connected
+
+            // Initialize status listener when connected
             if (update.connection === 'open') {
                 try {
                     statusListener.initializeStatusListener(sock);
@@ -81,10 +80,25 @@ async function connectToWhatsApp() {
             }
         });
 
-        // Handle incoming messages
-        sock.ev.on('messages.upsert', ({ messages }) => 
-            handleMessage(messages, sock, CONFIG, commands)
-        );
+        // ============================================
+        // ✅ HANDLE INCOMING MESSAGES WITH ANTILINK
+        // ============================================
+        sock.ev.on('messages.upsert', async ({ messages }) => {
+            const msg = messages[0];
+            if (!msg.message) return;
+            
+            // ✅ CHECK ANTILINK FIRST (before command processing)
+            try {
+                await antilink.handleMessage(sock, msg);
+            } catch (error) {
+                if (CONFIG.logErrors) {
+                    console.error('❌ Antilink error:', error.message);
+                }
+            }
+            
+            // Then handle normal messages/commands
+            handleMessage(messages, sock, CONFIG, commands);
+        });
 
     } catch (error) {
         console.error('❌ Connection error:', error.message);
@@ -140,7 +154,8 @@ console.log(`   • Always Online: ${CONFIG.alwaysOnline ? '✓' : '✗'}`);
 console.log(`   • Auto View Status: ${CONFIG.autoViewStatus ? '✓' : '✗'}`);
 console.log(`   • Auto React: ${CONFIG.autoReact ? '✓' : '✗'}`);
 console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
-console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}\n`);
+console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}`);
+console.log(`   • Anti-Link: ✓ Enabled\n`); // ✅ ADDED
 
 const authPath = path.join(__dirname, 'sessions');
 const credsPath = path.join(authPath, 'creds.json');
