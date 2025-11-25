@@ -1,4 +1,4 @@
-// commands/antilink.js - Anti-Link Protection
+// commands/antilink.js - Anti-Link Protection (COMPLETE)
 // No external dependencies needed
 
 const fs = require('fs');
@@ -96,7 +96,7 @@ function isWhitelisted(groupId, userId) {
 module.exports = {
     name: 'antilink',
     alias: ['antlink'],
-    admin: false,  // Changed to false - will check group admin inside
+    admin: false,
     description: 'Protect group from unwanted links',
 
     exec: async (sock, from, args, msg, isAdmin) => {
@@ -261,7 +261,7 @@ module.exports = {
                                msg.message?.videoMessage?.caption || '';
 
             // Check for links
-            const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|net|org|io|co|app|xyz|tv|me)[^\s]*)/gi;
+            const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|net|org|io|co|app|xyz|tv|me|in|uk|us)[^\s]*)/gi;
             const whatsappGroupRegex = /(https?:\/\/)?(chat\.whatsapp\.com|wa\.me)\/[^\s]+/gi;
 
             if (!linkRegex.test(messageText) && !whatsappGroupRegex.test(messageText)) return;
@@ -278,43 +278,49 @@ module.exports = {
             const settings = loadSettings();
             const action = settings[from]?.action || 'delete';
 
-            // Delete message
-            await sock.sendMessage(from, { delete: msg.key });
+            console.log(`🔗 Link detected from ${sender.split('@')[0]} - Action: ${action}`);
 
             // Perform action
             switch (action) {
                 case 'delete':
+                    // Delete message first
+                    await sock.sendMessage(from, { delete: msg.key });
+                    
+                    // Send single notification
                     await sock.sendMessage(from, {
-                        text: `⚠️ *Link Detected!*\n\n` +
-                            `👤 @${sender.split('@')[0]}\n` +
-                            `🔗 Links are not allowed in this group\n` +
-                            `❌ Message deleted`,
+                        text: `⚠️ Link deleted from @${sender.split('@')[0]}`,
                         mentions: [sender]
                     });
                     break;
 
                 case 'warn':
+                    // Delete message first
+                    await sock.sendMessage(from, { delete: msg.key });
+                    
+                    // Send warning
                     await sock.sendMessage(from, {
                         text: `⚠️ *WARNING!*\n\n` +
                             `👤 @${sender.split('@')[0]}\n` +
-                            `🔗 Do not send links in this group!\n` +
-                            `❌ Next time you will be removed`,
+                            `🔗 Links are not allowed!\n` +
+                            `⚡ Next violation = removal`,
                         mentions: [sender]
                     });
                     break;
 
                 case 'kick':
+                    // Delete message first
+                    await sock.sendMessage(from, { delete: msg.key });
+                    
+                    // Kick user
                     await sock.groupParticipantsUpdate(from, [sender], 'remove');
+                    
+                    // Send notification
                     await sock.sendMessage(from, {
-                        text: `🚫 *User Removed!*\n\n` +
-                            `👤 @${sender.split('@')[0]}\n` +
-                            `🔗 Reason: Sharing links`,
+                        text: `🚫 Removed @${sender.split('@')[0]} for sharing links`,
                         mentions: [sender]
                     });
                     break;
             }
-
-            console.log(`🔗 Link detected from ${sender} - Action: ${action}`);
 
         } catch (error) {
             console.error('❌ Antilink handler error:', error);
