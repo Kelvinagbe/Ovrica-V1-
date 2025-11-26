@@ -43,7 +43,7 @@ module.exports = {
                         title: "🎭 OVRICA-V1🎭",
                         body: "OVRICA WhatsApp Bot v1.0",
                         sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                        mediaType: 1,
+                       
                         renderLargerThumbnail: falss
                     }
                 };
