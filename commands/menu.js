@@ -73,7 +73,7 @@ module.exports = {
             const text = templates.menu(getBotInfo(CONFIG));
 
             // Send with local image from path
-            // Change './assets/menu.jpg' to your actual image path
+            // Change './assets/app.png' to your actual image path
             await sendFancyReply(text, './assets/menu.jpg');
 
             console.log(`📱 Menu sent to ${from}`);
