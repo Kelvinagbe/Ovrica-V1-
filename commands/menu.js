@@ -5,7 +5,7 @@ const fs = require('fs');
 
 function getBotInfo(config) {
     return {
-        name: 'OVRICA-V1',
+        name: '    "𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
         owner: 'KELVIN AGBE',
         prefix: '/',
         user: 'User',
@@ -36,7 +36,7 @@ module.exports = {
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: "120363418958316196@newsletter",
-                        newsletterName: "🎭 Kelvin Tech",
+                        newsletterName: "𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏",
                         serverMessageId: 200
                     }
                 };
