@@ -42,7 +42,6 @@ module.exports = {
                     externalAdReply: {
                         title: "🎭 OVRICA-V1🎭",
                         body: "OVRICA WhatsApp Bot v1.0",
-                        thumbnailUrl: "https://files.catbox.moe/ked25s.jpg",
                         sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
                         mediaType: 1,
                         renderLargerThumbnail: true
@@ -74,8 +73,8 @@ module.exports = {
             const text = templates.menu(getBotInfo(CONFIG));
 
             // Send with local image from path
-            // Change './assets/.jpg' to your actual image path
-            await sendFancyReply(text, './assets/app.png');
+            // Change './assets/menu.jpg' to your actual image path
+            await sendFancyReply(text, './assets/menu.jpg');
 
             console.log(`📱 Menu sent to ${from}`);
 
