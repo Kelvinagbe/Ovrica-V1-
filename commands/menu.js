@@ -74,7 +74,7 @@ module.exports = {
 
             // Send with local image from path
             // Change './assets/app.png' to your actual image path
-            await sendFancyReply(text, './assets/menu.jpg');
+            await sendFancyReply(text, './assets/app.png');
 
             console.log(`📱 Menu sent to ${from}`);
 
