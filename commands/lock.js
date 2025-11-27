@@ -91,21 +91,64 @@ module.exports = {
                 return;
             }
 
-            // Step 6: Find bot
+            // Step 6: Find bot - ENHANCED METHOD
             console.log('\nStep 6 - Finding bot in participants...');
-            const botNumber = sock.user.id.split(':')[0];
-            console.log('Bot number:', botNumber);
+            console.log('sock.user.id:', sock.user.id);
             
-            let botParticipant = groupMetadata.participants.find(p => 
-                p.id === `${botNumber}@s.whatsapp.net` ||
-                p.id.split('@')[0] === botNumber || 
-                p.id.split(':')[0] === botNumber
-            );
+            const botNumber = sock.user.id.split(':')[0];
+            console.log('Bot number extracted:', botNumber);
+            
+            console.log('\nSearching for bot in participants...');
+            let botParticipant = null;
+            
+            // Method 1: Direct match with @s.whatsapp.net
+            botParticipant = groupMetadata.participants.find(p => {
+                const match = p.id === `${botNumber}@s.whatsapp.net`;
+                if (match) console.log('✅ Found with method 1:', p.id);
+                return match;
+            });
+            
+            // Method 2: Split by @ and compare
+            if (!botParticipant) {
+                botParticipant = groupMetadata.participants.find(p => {
+                    const pNumber = p.id.split('@')[0];
+                    const match = pNumber === botNumber;
+                    if (match) console.log('✅ Found with method 2:', p.id);
+                    return match;
+                });
+            }
+            
+            // Method 3: Split by : then @ and compare
+            if (!botParticipant) {
+                botParticipant = groupMetadata.participants.find(p => {
+                    const pNumber = p.id.split(':')[0].split('@')[0];
+                    const match = pNumber === botNumber;
+                    if (match) console.log('✅ Found with method 3:', p.id);
+                    return match;
+                });
+            }
+            
+            // Method 4: Match the full sock.user.id
+            if (!botParticipant) {
+                botParticipant = groupMetadata.participants.find(p => {
+                    const match = p.id === sock.user.id;
+                    if (match) console.log('✅ Found with method 4:', p.id);
+                    return match;
+                });
+            }
             
             if (!botParticipant) {
-                console.log('❌ Bot not found in participants');
+                console.log('\n❌ BOT NOT FOUND AFTER ALL METHODS');
+                console.log('Searched for bot number:', botNumber);
+                console.log('Searched for full ID:', sock.user.id);
+                console.log('\nAll participant IDs:');
+                groupMetadata.participants.forEach((p, i) => {
+                    console.log(`  ${i+1}. ${p.id}`);
+                });
+                
                 await sock.sendMessage(from, { 
-                    text: '❌ Error: Bot not found in group. Try re-adding the bot.' 
+                    text: '❌ Error: Bot not found in group.\n\n' +
+                          'Debug info sent to console. Please check if bot is actually in the group.' 
                 });
                 return;
             }
