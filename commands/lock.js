@@ -5,28 +5,43 @@ module.exports = {
   description: 'Lock group (only admins can send messages)',
   admin: true,
 
-  async exec(sock, from, args, msg, isAdmin, sendWithTyping) {
+  exec: async (sock, from, args, msg, isAdmin) => {
     // Check if it's a group
     if (!from.endsWith('@g.us')) {
-      return await sendWithTyping(sock, from, '❌ This command only works in groups!');
+      return await sock.sendMessage(from, {
+        text: '❌ This command only works in groups!'
+      }, { quoted: msg });
     }
 
-    // Check if user is admin (already handled by isAdmin param)
+    // Check if user is admin
     if (!isAdmin) {
-      return await sendWithTyping(sock, from, '❌ Only admins can lock the group!');
+      return await sock.sendMessage(from, {
+        text: '❌ Only admins can lock the group!'
+      }, { quoted: msg });
     }
 
     // Check if bot is admin
-    if (!await isBotAdmin(sock, from)) {
-      return await sendWithTyping(sock, from, '❌ Make me admin first!');
+    const botIsAdmin = await isBotAdmin(sock, from);
+    console.log('🔍 Bot admin status:', botIsAdmin); // Debug log
+    
+    if (!botIsAdmin) {
+      return await sock.sendMessage(from, {
+        text: '❌ Make me admin first!'
+      }, { quoted: msg });
     }
 
     try {
       await sock.groupSettingUpdate(from, 'announcement');
-      await sendWithTyping(sock, from, '🔒 *Group Locked!*\n\nOnly admins can send messages now.');
+      await sock.sendMessage(from, {
+        text: '🔒 *Group Locked!*\n\nOnly admins can send messages now.'
+      }, { quoted: msg });
+      
+      console.log(`✅ Group ${from} locked successfully`);
     } catch (error) {
-      console.error('Lock error:', error);
-      await sendWithTyping(sock, from, '❌ Failed to lock group.');
+      console.error('❌ Lock error:', error);
+      await sock.sendMessage(from, {
+        text: `❌ Failed to lock group: ${error.message}`
+      }, { quoted: msg });
     }
   }
 };
