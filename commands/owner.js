@@ -11,39 +11,54 @@ module.exports = {
         try {
             // Get owner/author info (customize these)
             const ownerInfo = {
-                name: '🎭 Kelvin',
-                role: 'Bot Developer',
+                name: '𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄',
                 github: 'https://github.com/Kelvinagbe',
                 whatsapp: '2348109860102', // Owner's WhatsApp number
-                channel: 'https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10',
-                bio: 'Full Stack Developer & WhatsApp Bot Creator'
+                channel: 'https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10'
             };
 
             const ownerMessage = 
-                `┌ ❏ *⌜ BOT OWNER INFO ⌟* ❏\n` +
+                `┌ ❏ *⌜ BOT OWNER ⌟* ❏\n` +
                 `│\n` +
-                `├◆ 👤 *Name:* ${ownerInfo.name}\n` +
-                `├◆ 💼 *Role:* ${ownerInfo.role}\n` +
-                `├◆ 📝 *Bio:* ${ownerInfo.bio}\n` +
+                `├◆ 👤 *${ownerInfo.name}*\n` +
                 `│\n` +
-                `└ ❏\n` +
-                `┌ ❏ ◆ *⌜CONTACT INFO⌟* ◆\n` +
-                `│\n` +
-                `├◆ 📱 *WhatsApp:* wa.me/${ownerInfo.whatsapp}\n` +
+                `├◆ 📱 *Number:* wa.me/${ownerInfo.whatsapp}\n` +
                 `├◆ 💻 *GitHub:* ${ownerInfo.github}\n` +
-                `├◆ 📢 *Channel:* ${ownerInfo.channel}\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `> Powered by ${ownerInfo.name}`;
 
-            // Load local thumbnail
-            const thumbnailPath = path.join(process.cwd(), 'assets', 'app.png');
             let imageBuffer = null;
 
-            if (fs.existsSync(thumbnailPath)) {
-                imageBuffer = fs.readFileSync(thumbnailPath);
-            } else {
-                console.log('⚠️ Thumbnail not found at assets/app.png');
+            // Try to get owner's WhatsApp profile picture
+            try {
+                const ownerJid = `${ownerInfo.whatsapp}@s.whatsapp.net`;
+                const profilePicUrl = await sock.profilePictureUrl(ownerJid, 'image');
+                
+                if (profilePicUrl) {
+                    console.log('✅ Fetching owner profile picture...');
+                    
+                    // Download the profile picture
+                    const axios = require('axios');
+                    const response = await axios.get(profilePicUrl, { 
+                        responseType: 'arraybuffer',
+                        timeout: 10000 
+                    });
+                    imageBuffer = Buffer.from(response.data);
+                    
+                    console.log('✅ Owner profile picture loaded');
+                }
+            } catch (profileError) {
+                console.log('⚠️ Could not fetch owner profile picture, trying local fallback...');
+                
+                // Fallback to local thumbnail
+                const thumbnailPath = path.join(process.cwd(), 'assets', 'app.png');
+                if (fs.existsSync(thumbnailPath)) {
+                    imageBuffer = fs.readFileSync(thumbnailPath);
+                    console.log('✅ Using local thumbnail');
+                } else {
+                    console.log('⚠️ No profile picture or local thumbnail available');
+                }
             }
 
             // Send owner info with image if available
@@ -62,7 +77,7 @@ module.exports = {
                     }
                 }, { quoted: msg });
             } else {
-                // Fallback to text only if image not found
+                // Fallback to text only if no image available
                 await sock.sendMessage(from, {
                     text: ownerMessage,
                     contextInfo: {
