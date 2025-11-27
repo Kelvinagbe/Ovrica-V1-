@@ -26,14 +26,6 @@ module.exports = {
             const minutes = Math.floor((uptime % 3600) / 60);
             const seconds = Math.floor(uptime % 60);
 
-            // Format uptime
-            const uptimeStr = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-
-            // Get memory usage
-            const memUsage = process.memoryUsage();
-            const totalMem = (memUsage.heapTotal / 1024 / 1024).toFixed(2);
-            const usedMem = (memUsage.heapUsed / 1024 / 1024).toFixed(2);
-
             // Determine speed emoji and status
             let speedEmoji = '🟢';
             let speedStatus = 'Excellent';
@@ -46,22 +38,13 @@ module.exports = {
             }
 
             const pingMessage = 
-                `┌ ❏ *⌜ PING RESPONSE ⌟* ❏\n` +
+                `┌ ❏ *⌜ SPEED TEST ⌟* ❏\n` +
                 `│\n` +
-                `├◆ ${speedEmoji} *Response Time:* ${responseTime}ms\n` +
-                `├◆ 📊 *Status:* ${speedStatus}\n` +
-                `│\n` +
-                `└ ❏\n` +
-                `┌ ❏ ◆ *⌜SYSTEM INFO⌟* ◆\n` +
-                `│\n` +
-                `├◆ ⏱️ *Uptime:* ${uptimeStr}\n` +
-                `├◆ 💾 *Memory:* ${usedMem}MB / ${totalMem}MB\n` +
-                `├◆ 🖥️ *Platform:* ${process.platform}\n` +
-                `├◆ 📦 *Node:* ${process.version}\n` +
-                `├◆ ✅ *Status:* Online\n` +
+                `├◆ ${speedEmoji} *${responseTime}ms*\n` +
+                `├◆ 📊 *${speedStatus}*\n` +
                 `│\n` +
                 `└ ❏\n` +
-                `> Powered by 🎭Kelvin🎭`;
+                `> Powered by 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
 
             // Delete the "Pinging..." message first
             try {
