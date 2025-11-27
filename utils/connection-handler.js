@@ -1,5 +1,6 @@
 // utils/connection-handler.js
 const { DisconnectReason } = require('@whiskeysockets/baileys');
+const readline = require('readline');
 
 let pairRequested = false;
 let connectionNotificationSent = false;
@@ -15,6 +16,7 @@ async function requestPairingCode(sock, phoneNumber) {
         
         const code = await sock.requestPairingCode(phoneNumber);
         
+        // Display in template
         console.log('╔════════════════════════════╗');
         console.log('║   🔐 PAIRING CODE         ║');
         console.log('╠════════════════════════════╣');
@@ -27,10 +29,14 @@ async function requestPairingCode(sock, phoneNumber) {
         console.log('║  ⏰ Valid for 60 seconds  ║');
         console.log('╚════════════════════════════╝\n');
         
+        // Also send normally
+        console.log(`Your Pairing Code: ${code}`);
+        console.log(`Phone Number: ${phoneNumber}\n`);
+        
         setTimeout(() => {
             if (pairingInProgress) {
                 pairingInProgress = false;
-                console.log('⏱️  Pairing code expired\n');
+                console.log('⏱️  Pairing code expired. Please restart and try again.\n');
             }
         }, 90000);
         
@@ -40,6 +46,30 @@ async function requestPairingCode(sock, phoneNumber) {
         console.error('❌ Failed to request pairing code:', error.message);
         throw error;
     }
+}
+
+/**
+ * Ask for phone number
+ */
+function askPhoneNumber() {
+    return new Promise((resolve) => {
+        const rl = readline.createInterface({ 
+            input: process.stdin, 
+            output: process.stdout 
+        });
+        
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔐 FIRST TIME SETUP - PAIRING CODE');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        console.log('📝 Enter your WhatsApp number');
+        console.log('💡 Include country code (e.g., 2348109860102)');
+        console.log('💡 Or use format: +234 810 986 0102\n');
+        
+        rl.question('📱 Phone Number: ', (phone) => {
+            rl.close();
+            resolve(phone);
+        });
+    });
 }
 
 /**
@@ -59,45 +89,42 @@ async function notifyAdmins(sock, admins, message) {
  * Main connection handler
  */
 async function handleConnection(update, sock, reconnect, CONFIG) {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
     
     try {
         // First time setup - request pairing code
         if (!sock.authState.creds.registered && !pairRequested) {
             pairRequested = true;
             
-            console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('🔐 FIRST TIME SETUP - PAIRING CODE');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+            // Ask for phone number
+            const phone = await askPhoneNumber();
             
-            const readline = require('readline');
-            const rl = readline.createInterface({ 
-                input: process.stdin, 
-                output: process.stdout 
-            });
+            const cleanPhone = phone.replace(/[^0-9]/g, '');
             
-            rl.question('📱 Enter phone number (with country code, e.g., 2348109860102): ', async (phone) => {
-                rl.close();
-                
-                const cleanPhone = phone.replace(/[^0-9]/g, '');
-                
-                if (cleanPhone.length < 10) {
-                    console.error('\n❌ Invalid phone number format');
-                    console.error('💡 Example: 2348109860102 (country code + number)\n');
-                    pairingInProgress = false;
-                    return process.exit(1);
-                }
-                
-                try {
-                    await requestPairingCode(sock, cleanPhone);
-                } catch (error) {
-                    console.error('❌ Pairing failed:', error.message);
-                    pairingInProgress = false;
-                    process.exit(1);
-                }
-            });
+            if (cleanPhone.length < 10) {
+                console.error('\n❌ Invalid phone number format');
+                console.error('💡 Example: 2348109860102 (country code + number)');
+                console.error('💡 Minimum 10 digits required\n');
+                pairingInProgress = false;
+                return process.exit(1);
+            }
+            
+            console.log(`\n✅ Valid number: ${cleanPhone}`);
+            
+            try {
+                await requestPairingCode(sock, cleanPhone);
+            } catch (error) {
+                console.error('❌ Pairing failed:', error.message);
+                pairingInProgress = false;
+                process.exit(1);
+            }
             
             return;
+        }
+        
+        // Handle QR code (fallback)
+        if (qr) {
+            console.log('\n📱 QR Code received (using pairing code instead)\n');
         }
         
         // Handle disconnection
