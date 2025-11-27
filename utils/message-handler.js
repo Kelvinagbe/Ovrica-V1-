@@ -1,5 +1,5 @@
 // FILE: utils/message-handler.js
-// Enhanced message handler with AI chat triggers and protection systems
+// Enhanced message handler with FIXED auto-react system
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
@@ -39,13 +39,13 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             try {
                 // Run antilink protection
                 await antilink.handleMessage(sock, msg);
-                
+
                 // Run antiswear protection
                 await antiswear.handleMessage(sock, msg);
-                
+
                 // Run antispam protection
                 await antispam.handleMessage(sock, msg);
-                
+
             } catch (error) {
                 if (CONFIG.logErrors) {
                     console.error('❌ Protection system error:', error.message);
@@ -98,6 +98,10 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (isOwner && isCommand) {
             console.log(`👑 Owner: ${text.substring(0, 50)}`);
         } else if (isOwner) {
+            // Owner messages still get auto-react if enabled
+            if (shouldAutoReact(CONFIG, admin, false)) { // Pass false for isOwner to allow reactions
+                await autoReactToMessage(sock, from, msg, CONFIG);
+            }
             return; // Ignore non-command owner messages
         }
 
@@ -112,9 +116,17 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             welcomedUsers.add(from);
         }
 
-        // Auto-react
-        if (shouldAutoReact(CONFIG, admin, isOwner)) {
-            await autoReactToMessage(sock, from, msg, CONFIG);
+        // ============================================
+        // ✅ FIXED AUTO-REACT - React to ALL messages (not just admin/owner)
+        // ============================================
+        if (CONFIG.autoReact && !isCommand) {
+            // Get reaction chance from settings (default 30%)
+            const reactChance = CONFIG.reactChance || 0.3;
+            
+            // Random chance to react
+            if (Math.random() < reactChance) {
+                await autoReactToMessage(sock, from, msg, CONFIG);
+            }
         }
 
         // ============================================
@@ -280,10 +292,9 @@ function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
 }
 
 function shouldAutoReact(CONFIG, admin, isOwner) {
-    return (CONFIG.botMode === 'public' || admin) && 
-           CONFIG.autoReact && 
-           Math.random() < 0.3 && 
-           !isOwner;
+    // Removed the restriction - now anyone can trigger reactions
+    // Removed the random check - moved to main handler
+    return CONFIG.autoReact && !isOwner;
 }
 
 async function autoReactToMessage(sock, from, msg, CONFIG) {
@@ -292,11 +303,17 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
             const emoji = CONFIG.reactEmojis[
                 Math.floor(Math.random() * CONFIG.reactEmojis.length)
             ];
+            
+            // React immediately without delay
             await sock.sendMessage(from, {
                 react: { text: emoji, key: msg.key }
-            }).catch(() => {});
+            });
+            
+            console.log(`🎭 Reacted with ${emoji}`);
         }
-    } catch {}
+    } catch (error) {
+        // Silently fail - don't log reaction errors
+    }
 }
 
 async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands) {
