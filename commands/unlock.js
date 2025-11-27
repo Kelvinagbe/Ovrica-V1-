@@ -2,7 +2,7 @@
 module.exports = {
     name: 'unlock',
     description: 'Unlock group - everyone can send messages',
-    admin: true,
+    admin: false,
 
     exec: async (sock, from, args, msg, isAdmin) => {
         console.log('\n🔓 UNLOCK COMMAND TRIGGERED\n');
