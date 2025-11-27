@@ -4,7 +4,7 @@ module.exports = {
     description: 'Lock group - only admins can send messages',
     admin: false, // Don't use config admin check
 
-    exec: async (sock, from, args, msg, isAdmin) => {
+    exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         console.log('\n');
         console.log('================================');
         console.log('🔒 LOCK COMMAND TRIGGERED');
@@ -91,64 +91,53 @@ module.exports = {
                 return;
             }
 
-            // Step 6: Find bot - ENHANCED METHOD
+            // Step 6: Find bot - FIXED FOR @lid FORMAT
             console.log('\nStep 6 - Finding bot in participants...');
             console.log('sock.user.id:', sock.user.id);
             
-            const botNumber = sock.user.id.split(':')[0];
+            // Extract all possible bot identifiers
+            const botFullId = sock.user.id; // e.g., 234810:9860102:14@s.whatsapp.net
+            const botParts = botFullId.split(':');
+            const botNumber = botParts[0]; // First part before first colon
+            
             console.log('Bot number extracted:', botNumber);
+            console.log('All participants:');
+            groupMetadata.participants.forEach((p, i) => {
+                console.log(`  ${i+1}. ${p.id} - Admin: ${p.admin || 'none'}`);
+            });
             
             console.log('\nSearching for bot in participants...');
             let botParticipant = null;
             
-            // Method 1: Direct match with @s.whatsapp.net
+            // Try matching bot number with participant IDs
             botParticipant = groupMetadata.participants.find(p => {
-                const match = p.id === `${botNumber}@s.whatsapp.net`;
-                if (match) console.log('✅ Found with method 1:', p.id);
+                // Extract number from participant ID (handles @lid, @s.whatsapp.net, etc)
+                const pId = p.id.split('@')[0].split(':')[0];
+                const match = pId === botNumber || p.id.includes(botNumber);
+                
+                if (match) {
+                    console.log(`✅ Bot found: ${p.id} (matches bot number ${botNumber})`);
+                }
+                
                 return match;
             });
             
-            // Method 2: Split by @ and compare
             if (!botParticipant) {
-                botParticipant = groupMetadata.participants.find(p => {
-                    const pNumber = p.id.split('@')[0];
-                    const match = pNumber === botNumber;
-                    if (match) console.log('✅ Found with method 2:', p.id);
-                    return match;
-                });
-            }
-            
-            // Method 3: Split by : then @ and compare
-            if (!botParticipant) {
-                botParticipant = groupMetadata.participants.find(p => {
-                    const pNumber = p.id.split(':')[0].split('@')[0];
-                    const match = pNumber === botNumber;
-                    if (match) console.log('✅ Found with method 3:', p.id);
-                    return match;
-                });
-            }
-            
-            // Method 4: Match the full sock.user.id
-            if (!botParticipant) {
-                botParticipant = groupMetadata.participants.find(p => {
-                    const match = p.id === sock.user.id;
-                    if (match) console.log('✅ Found with method 4:', p.id);
-                    return match;
-                });
-            }
-            
-            if (!botParticipant) {
-                console.log('\n❌ BOT NOT FOUND AFTER ALL METHODS');
-                console.log('Searched for bot number:', botNumber);
-                console.log('Searched for full ID:', sock.user.id);
-                console.log('\nAll participant IDs:');
-                groupMetadata.participants.forEach((p, i) => {
-                    console.log(`  ${i+1}. ${p.id}`);
-                });
+                console.log('\n❌ BOT NOT FOUND IN PARTICIPANTS!');
+                console.log('This means the bot is not actually a member of this group.');
+                console.log('Bot number searched:', botNumber);
+                console.log('Bot full ID:', botFullId);
+                console.log('\n⚠️ IMPORTANT: Make sure you add the bot number to the group!');
+                console.log(`⚠️ Bot WhatsApp number starts with: ${botNumber}`);
                 
                 await sock.sendMessage(from, { 
-                    text: '❌ Error: Bot not found in group.\n\n' +
-                          'Debug info sent to console. Please check if bot is actually in the group.' 
+                    text: `❌ *Bot Not in Group!*\n\n` +
+                          `The bot is not a member of this group.\n\n` +
+                          `*To fix this:*\n` +
+                          `1. Add bot number: +${botNumber}...\n` +
+                          `2. Make the bot an admin\n` +
+                          `3. Try the /lock command again\n\n` +
+                          `*Note:* The bot can only control groups it's a member of.`
                 });
                 return;
             }
