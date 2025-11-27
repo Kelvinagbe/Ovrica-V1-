@@ -1,11 +1,11 @@
 // FILE: utils/message-handler.js
-// Enhanced message handler with FIXED auto-react system
+// FIXED: Auto-react and console spam issues
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
-// ✅ IMPORT ALL PROTECTION SYSTEMS
+// Import protection systems
 const antilink = require('../commands/antilink');
 const antiswear = require('../commands/antiswear');
 const antispam = require('../commands/antispam');
@@ -33,22 +33,19 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (!from) return;
 
         // ============================================
-        // ✅ RUN ALL PROTECTION SYSTEMS (Groups Only)
+        // PROTECTION SYSTEMS (Groups Only) - Silent mode
         // ============================================
         if (from.endsWith('@g.us')) {
             try {
-                // Run antilink protection
-                await antilink.handleMessage(sock, msg);
-
-                // Run antiswear protection
-                await antiswear.handleMessage(sock, msg);
-
-                // Run antispam protection
-                await antispam.handleMessage(sock, msg);
-
+                // Run protection silently (they'll only log violations)
+                await Promise.all([
+                    antilink.handleMessage(sock, msg),
+                    antiswear.handleMessage(sock, msg),
+                    antispam.handleMessage(sock, msg)
+                ]);
             } catch (error) {
                 if (CONFIG.logErrors) {
-                    console.error('❌ Protection system error:', error.message);
+                    console.error('❌ Protection error:', error.message);
                 }
             }
         }
@@ -80,30 +77,26 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         // Extract message text
         const text = extractMessageText(msg);
-
-        // Handle txt2img session
-        if (await handleTxt2ImgSession(sock, from, msg, text, userName)) {
-            return;
-        }
-
-        // Handle song selection (1 or 2 reply)
-        if (await handleSongSelection(sock, from, msg, text, commands)) {
-            return;
-        }
-
-        // Check if command
         const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
 
-        // Log owner commands
+        // Log owner commands only
         if (isOwner && isCommand) {
             console.log(`👑 Owner: ${text.substring(0, 50)}`);
-        } else if (isOwner) {
-            // Owner messages still get auto-react if enabled
-            if (shouldAutoReact(CONFIG, admin, false)) { // Pass false for isOwner to allow reactions
+        }
+
+        // ============================================
+        // FIX 1: AUTO-REACT - Works for ALL users now
+        // ============================================
+        if (CONFIG.autoReact && !isCommand && !isOwner) {
+            const reactChance = CONFIG.reactChance || 0.3;
+            
+            if (Math.random() < reactChance) {
                 await autoReactToMessage(sock, from, msg, CONFIG);
             }
-            return; // Ignore non-command owner messages
         }
+
+        // Owner non-commands are ignored
+        if (isOwner && !isCommand) return;
 
         // Private mode enforcement
         if (CONFIG.botMode === 'private' && !admin && !isOwner && isCommand) {
@@ -116,18 +109,9 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             welcomedUsers.add(from);
         }
 
-        // ============================================
-        // ✅ FIXED AUTO-REACT - React to ALL messages (not just admin/owner)
-        // ============================================
-        if (CONFIG.autoReact && !isCommand) {
-            // Get reaction chance from settings (default 30%)
-            const reactChance = CONFIG.reactChance || 0.3;
-            
-            // Random chance to react
-            if (Math.random() < reactChance) {
-                await autoReactToMessage(sock, from, msg, CONFIG);
-            }
-        }
+        // Handle special sessions
+        if (await handleTxt2ImgSession(sock, from, msg, text, userName)) return;
+        if (await handleSongSelection(sock, from, msg, text, commands)) return;
 
         // ============================================
         // AI CHAT INTEGRATION
@@ -138,9 +122,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             if (shouldRespondWithAI) {
                 console.log('✅ AI responding');
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
-                if (aiHandled) {
-                    return;
-                }
+                if (aiHandled) return;
             }
         }
 
@@ -157,10 +139,30 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 }
 
 // ============================================
+// FIX 2: AUTO-REACT FUNCTION - Simplified
+// ============================================
+async function autoReactToMessage(sock, from, msg, CONFIG) {
+    try {
+        const emojis = CONFIG.reactEmojis || ['❤️', '👍', '🔥', '😂', '✨'];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        await sock.sendMessage(from, {
+            react: { text: emoji, key: msg.key }
+        });
+        
+        // Only log occasionally to reduce spam
+        if (Math.random() < 0.1) {
+            console.log(`🎭 Reacted with ${emoji}`);
+        }
+    } catch (error) {
+        // Silently fail - reactions are non-critical
+    }
+}
+
+// ============================================
 // AI TRIGGER DETECTION
 // ============================================
 function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
-    // Always respond in DMs
     if (!isGroup) {
         console.log('🤖 AI: DM');
         return true;
@@ -265,16 +267,12 @@ async function handleTxt2ImgSession(sock, from, msg, text, userName) {
 
 async function handleSongSelection(sock, from, msg, text, commands) {
     try {
-        // Check if message is just "1" or "2"
         if (!text || !/^[12]$/.test(text.trim())) return false;
 
-        // Check if song command exists
         const songCommand = commands['song'];
         if (!songCommand) return false;
 
-        console.log(`🎵 Song selection detected: ${text.trim()}`);
-
-        // Call song command with the selection
+        console.log(`🎵 Song selection: ${text.trim()}`);
         await songCommand.exec(sock, from, [text.trim()], msg, false);
         return true;
 
@@ -289,31 +287,6 @@ function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
            !isGroup && 
            !welcomedUsers.has(from) && 
            !isOwner;
-}
-
-function shouldAutoReact(CONFIG, admin, isOwner) {
-    // Removed the restriction - now anyone can trigger reactions
-    // Removed the random check - moved to main handler
-    return CONFIG.autoReact && !isOwner;
-}
-
-async function autoReactToMessage(sock, from, msg, CONFIG) {
-    try {
-        if (CONFIG.reactEmojis?.length > 0) {
-            const emoji = CONFIG.reactEmojis[
-                Math.floor(Math.random() * CONFIG.reactEmojis.length)
-            ];
-            
-            // React immediately without delay
-            await sock.sendMessage(from, {
-                react: { text: emoji, key: msg.key }
-            });
-            
-            console.log(`🎭 Reacted with ${emoji}`);
-        }
-    } catch (error) {
-        // Silently fail - don't log reaction errors
-    }
 }
 
 async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands) {
