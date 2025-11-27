@@ -5,7 +5,7 @@ const path = require('path');
 module.exports = {
     name: 'react',
     description: 'Control auto-react feature with custom emojis',
-    admin: true,
+    admin: false,
 
     async exec(sock, from, args, msg, isAdmin, sendWithTyping) {
         try {
