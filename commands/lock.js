@@ -1,57 +1,119 @@
-// commands/lock.js - Lock group (only admins can send messages)
-const { isBotAdmin } = require('../utils/helpers/groupHelpers');
-
+// commands/lock.js
 module.exports = {
     name: 'lock',
-    description: 'Lock group (only admins can send messages)',
+    description: 'Lock group - only admins can send messages',
     admin: true,
 
     exec: async (sock, from, args, msg, isAdmin) => {
-        console.log('🔒 Lock command started');
-        console.log('📍 From:', from);
-        console.log('👤 Is Admin:', isAdmin);
-
-        // Check if it's a group
-        if (!from.endsWith('@g.us')) {
-            console.log('❌ Not a group');
-            return await sock.sendMessage(from, {
-                text: '❌ This command only works in groups!'
-            }, { quoted: msg });
-        }
-
-        // Check if user is admin (already handled by command handler)
-        if (!isAdmin) {
-            console.log('❌ User not admin');
-            return await sock.sendMessage(from, {
-                text: '❌ Only admins can lock the group!'
-            }, { quoted: msg });
-        }
-
-        // Check if bot is admin
-        console.log('🔍 Checking bot admin status...');
-        const botIsAdmin = await isBotAdmin(sock, from);
-        console.log('🤖 Bot is admin:', botIsAdmin);
-        
-        if (!botIsAdmin) {
-            return await sock.sendMessage(from, {
-                text: '❌ Make me admin first!'
-            }, { quoted: msg });
-        }
+        console.log('\n');
+        console.log('================================');
+        console.log('🔒 LOCK COMMAND TRIGGERED');
+        console.log('================================');
+        console.log('From:', from);
+        console.log('User is admin:', isAdmin);
+        console.log('================================\n');
 
         try {
-            console.log('🔒 Locking group...');
+            // Step 1: Check if group
+            const isGroup = from.endsWith('@g.us');
+            console.log('Step 1 - Is group:', isGroup);
+            
+            if (!isGroup) {
+                await sock.sendMessage(from, { 
+                    text: '❌ This command only works in groups!' 
+                });
+                return;
+            }
+
+            // Step 2: Check user admin (already done by handler)
+            console.log('Step 2 - User admin check:', isAdmin);
+            
+            if (!isAdmin) {
+                await sock.sendMessage(from, { 
+                    text: '❌ You must be an admin to use this command!' 
+                });
+                return;
+            }
+
+            // Step 3: Get group metadata
+            console.log('Step 3 - Getting group metadata...');
+            const groupMetadata = await sock.groupMetadata(from);
+            console.log('Group name:', groupMetadata.subject);
+            console.log('Total participants:', groupMetadata.participants.length);
+
+            // Step 4: Find bot in participants
+            console.log('\nStep 4 - Finding bot in participants...');
+            console.log('Bot user ID:', sock.user.id);
+            
+            const botNumber = sock.user.id.split(':')[0];
+            console.log('Bot number:', botNumber);
+            
+            // Try to find bot
+            let botParticipant = null;
+            
+            // Method 1: Direct match
+            botParticipant = groupMetadata.participants.find(p => 
+                p.id === `${botNumber}@s.whatsapp.net`
+            );
+            
+            // Method 2: Split and match
+            if (!botParticipant) {
+                botParticipant = groupMetadata.participants.find(p => 
+                    p.id.split('@')[0] === botNumber || 
+                    p.id.split(':')[0] === botNumber
+                );
+            }
+            
+            console.log('\nAll participants:');
+            groupMetadata.participants.forEach((p, i) => {
+                console.log(`  ${i+1}. ${p.id} - Admin: ${p.admin || 'no'}`);
+            });
+            
+            if (!botParticipant) {
+                console.log('\n❌ ERROR: Bot not found in participants!');
+                await sock.sendMessage(from, { 
+                    text: '❌ Error: Bot not found in group participants. Try removing and re-adding the bot.' 
+                });
+                return;
+            }
+            
+            console.log('\n✅ Bot found:', botParticipant.id);
+            console.log('Bot admin status:', botParticipant.admin);
+
+            // Step 5: Check if bot is admin
+            const botIsAdmin = botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin';
+            console.log('Bot is admin:', botIsAdmin);
+            
+            if (!botIsAdmin) {
+                await sock.sendMessage(from, { 
+                    text: '❌ I need to be a group admin to lock the group!\n\nPlease make me an admin first.' 
+                });
+                return;
+            }
+
+            // Step 6: Lock the group
+            console.log('\nStep 6 - Locking group...');
             await sock.groupSettingUpdate(from, 'announcement');
-            
-            await sock.sendMessage(from, {
-                text: '🔒 *Group Locked!*\n\nOnly admins can send messages now.'
-            }, { quoted: msg });
-            
-            console.log('✅ Group locked successfully');
+            console.log('✅ Group locked successfully!');
+
+            // Step 7: Send confirmation
+            await sock.sendMessage(from, { 
+                text: '🔒 *Group Locked!*\n\nOnly admins can send messages now.' 
+            });
+
+            console.log('================================');
+            console.log('✅ LOCK COMMAND COMPLETED');
+            console.log('================================\n');
+
         } catch (error) {
-            console.error('❌ Lock error:', error);
-            await sock.sendMessage(from, {
-                text: `❌ Failed to lock group.\n\nError: ${error.message}`
-            }, { quoted: msg });
+            console.error('\n❌ ERROR IN LOCK COMMAND:');
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('================================\n');
+            
+            await sock.sendMessage(from, { 
+                text: `❌ Error: ${error.message}` 
+            });
         }
     }
 };
