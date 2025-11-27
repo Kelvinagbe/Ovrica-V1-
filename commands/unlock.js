@@ -1,4 +1,4 @@
-const { isBotAdmin } = require('../utils/groupHelpers');
+const { isBotAdmin } = require('../utils/helpers/groupHelpers');
 
 module.exports = {
   name: 'unlock',
