@@ -1,7 +1,7 @@
-const { isBotAdmin } = require('../utils/groupHelpers');
+const { isBotAdmin } = require('../utils/helpers/groupHelpers');
 
 module.exports = {
-  name: 'groupname',
+  name: 'gcname',
   description: 'Change group name - Usage: !groupname <new name>',
   admin: true,
 
