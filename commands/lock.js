@@ -1,3 +1,4 @@
+commands/lock.js
 const { isBotAdmin } = require('../utils/helpers/groupHelpers');
 
 module.exports = {
@@ -5,7 +6,9 @@ module.exports = {
   description: 'Lock group (only admins can send messages)',
   admin: true,
 
-  exec: async (sock, from, args, msg, isAdmin) => {
+  exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
+    console.log('🔒 Lock command executing...'); // Debug log
+
     // Check if it's a group
     if (!from.endsWith('@g.us')) {
       return await sock.sendMessage(from, {
@@ -15,14 +18,16 @@ module.exports = {
 
     // Check if user is admin
     if (!isAdmin) {
+      console.log('❌ User is not admin');
       return await sock.sendMessage(from, {
         text: '❌ Only admins can lock the group!'
       }, { quoted: msg });
     }
 
     // Check if bot is admin
+    console.log('🔍 Checking bot admin status...');
     const botIsAdmin = await isBotAdmin(sock, from);
-    console.log('🔍 Bot admin status:', botIsAdmin); // Debug log
+    console.log('Bot admin status:', botIsAdmin);
     
     if (!botIsAdmin) {
       return await sock.sendMessage(from, {
@@ -31,7 +36,9 @@ module.exports = {
     }
 
     try {
+      console.log('🔒 Attempting to lock group...');
       await sock.groupSettingUpdate(from, 'announcement');
+      
       await sock.sendMessage(from, {
         text: '🔒 *Group Locked!*\n\nOnly admins can send messages now.'
       }, { quoted: msg });
