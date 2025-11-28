@@ -6,7 +6,7 @@ module.exports = {
 
     name: 'tagall',
 
-    admin: false,
+    admin: true,
 
     description: 'Tag all group members',
 
