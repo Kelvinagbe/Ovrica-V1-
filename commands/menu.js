@@ -24,7 +24,7 @@ function getBotInfo(config) {
 
 module.exports = {
     name: 'menu',
-    admin: true,
+    admin: fasle,
     description: 'Show main menu',
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
