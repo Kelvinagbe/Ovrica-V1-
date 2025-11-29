@@ -1,4 +1,4 @@
-const { loadJSON, saveJSON } = require('../utils/db-loader');
+const { loadJSON, saveJSON } = require('../../utils/db-loader');
 
 module.exports = {
     name: 'setadmin',
