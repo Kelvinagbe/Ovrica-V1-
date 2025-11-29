@@ -37,7 +37,7 @@ async function sendWithTyping(sock, jid, content) {
 
 // Auto-load commands from /commands folder
 const commands = {};
-const commandsDir = path.join(__dirname, 'commands');
+const commandsDir = path.join(__dirname, './src/cmd');
 let commandsLoaded = false; // Track if we've already logged
 
 function loadCommands(silent = false) {
