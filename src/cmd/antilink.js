@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Store antilink settings
-const settingsPath = path.join(__dirname, '../data/antilink.json');
+const settingsPath = path.join(__dirname, '@/data/antilink.json');
 
 // Initialize settings file
 function initSettings() {
