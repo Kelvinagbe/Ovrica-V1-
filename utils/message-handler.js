@@ -6,9 +6,9 @@ const { isAdmin, getUserName } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
 // Import protection systems
-const antilink = require('../commands/antilink');
-const antiswear = require('../commands/antiswear');
-const antispam = require('../commands/antispam');
+const antilink = require('../src/cmd/antilink');
+const antiswear = require('../src/cmd/antiswear');
+const antispam = require('../src/cmd/antispam');
 
 // Import state
 let welcomedUsers, statusViewed;
