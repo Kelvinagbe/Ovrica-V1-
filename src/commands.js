@@ -7,7 +7,7 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 // Load templates
 let templates, design, getServerStatus;
 try {
-    const templateModule = require('@/templates');
+    const templateModule = require('@/src/tmp/templates');
     templates = templateModule.templates;
     design = templateModule.design;
     getServerStatus = templateModule.getServerStatus;
