@@ -1,13 +1,20 @@
-// utils/energy-system.js - Optimized Energy System with Caching
+// utils/energy-system.js - Fixed Energy System with Proper Initialization
 
 const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
 const path = require('path');
+const fs = require('fs');
+
+// Ensure db directory exists
+const dbDir = path.join(__dirname, '../db');
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
 
 // Initialize database
-const dbPath = path.join(__dirname, '../db/energy.json');
+const dbPath = path.join(dbDir, 'energy.json');
 const adapter = new JSONFile(dbPath);
-const db = new Low(adapter);
+const db = new Low(adapter, { users: [] }); // ✅ Provide default data here
 
 // In-memory cache for faster access
 const energyCache = new Map();
@@ -44,10 +51,22 @@ async function forceWrite() {
 
 // Initialize database structure
 async function initEnergyDB() {
-    await db.read();
-    db.data ||= { users: [] };
-    await db.write();
-    console.log('✅ Energy system ready');
+    try {
+        await db.read();
+        
+        // Ensure data structure exists
+        db.data = db.data || { users: [] };
+        
+        // Write initial structure if new
+        await db.write();
+        
+        console.log('✅ Energy system ready');
+    } catch (error) {
+        console.error('❌ Energy DB init failed:', error.message);
+        // Set default data on error
+        db.data = { users: [] };
+        await db.write();
+    }
 }
 
 // Get user from cache or database
