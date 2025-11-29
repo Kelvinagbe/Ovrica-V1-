@@ -7,7 +7,7 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 // Load templates
 let templates, design, getServerStatus;
 try {
-    const templateModule = require('./templates');
+    const templateModule = require('@/templates');
     templates = templateModule.templates;
     design = templateModule.design;
     getServerStatus = templateModule.getServerStatus;
@@ -18,8 +18,8 @@ try {
 
 // Helper function for typing indicator
 async function sendWithTyping(sock, jid, content) {
-    const CONFIG = require('./config');
-    const messageQueue = require('./index').messageQueue;
+    const CONFIG = require('@/config');
+    const messageQueue = require('@/index').messageQueue;
 
     const delay = Math.max(0, 2000 - (Date.now() - (messageQueue.get(jid) || 0)));
     if (delay > 0) await new Promise(r => setTimeout(r, delay));
@@ -37,7 +37,7 @@ async function sendWithTyping(sock, jid, content) {
 
 // Auto-load commands from /commands folder
 const commands = {};
-const commandsDir = path.join(__dirname, './src/cmd');
+const commandsDir = path.join(__dirname, '@/src/cmd');
 let commandsLoaded = false; // Track if we've already logged
 
 function loadCommands(silent = false) {
@@ -82,9 +82,9 @@ function reloadTemplates() {
     try {
         // Clear all JSON file caches
         const jsonFiles = [
-            './src/tmp/json/commands.json',
-            './src/tmp/symbols.json',
-            './src/head.json'
+            '@/src/tmp/json/commands.json',
+            '@/src/tmp/symbols.json',
+            '@/src/head.json'
         ];
         
         jsonFiles.forEach(file => {
@@ -95,10 +95,10 @@ function reloadTemplates() {
         });
 
         // Clear templates cache
-        delete require.cache[require.resolve('./templates')];
+        delete require.cache[require.resolve('@/templates')];
         
         // Reload templates
-        const templateModule = require('./templates');
+        const templateModule = require('@/templates');
         templates = templateModule.templates;
         design = templateModule.design;
         getServerStatus = templateModule.getServerStatus;
