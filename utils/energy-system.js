@@ -1,49 +1,109 @@
-// utils/energy-system.js - Energy Management with LowDB
+// utils/energy-system.js - Optimized Energy System with Caching
 
 const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
 const path = require('path');
 
 // Initialize database
-const dbPath = path.join(__dirname, '../src/db2/energy.json');
+const dbPath = path.join(__dirname, '../db/energy.json');
 const adapter = new JSONFile(dbPath);
 const db = new Low(adapter);
+
+// In-memory cache for faster access
+const energyCache = new Map();
+const CACHE_TTL = 30000; // 30 seconds cache lifetime
+
+// Batch write system
+let writeTimeout = null;
+let needsWrite = false;
+
+// Queue database write (batched for performance)
+function queueWrite() {
+    needsWrite = true;
+    
+    if (writeTimeout) return;
+    
+    writeTimeout = setTimeout(async () => {
+        if (needsWrite) {
+            await db.write();
+            needsWrite = false;
+        }
+        writeTimeout = null;
+    }, 2000); // Write every 2 seconds max
+}
+
+// Force immediate write (for critical operations)
+async function forceWrite() {
+    if (writeTimeout) {
+        clearTimeout(writeTimeout);
+        writeTimeout = null;
+    }
+    await db.write();
+    needsWrite = false;
+}
 
 // Initialize database structure
 async function initEnergyDB() {
     await db.read();
     db.data ||= { users: [] };
     await db.write();
+    console.log('✅ Energy system ready');
 }
 
-// Get user energy data
+// Get user from cache or database
 async function getUser(userId) {
+    const cached = energyCache.get(userId);
+    
+    if (cached && Date.now() - cached.time < CACHE_TTL) {
+        return cached.user;
+    }
+    
     await db.read();
-    return db.data.users.find(u => u.id === userId);
+    const user = db.data.users.find(u => u.id === userId);
+    
+    if (user) {
+        energyCache.set(userId, { user, time: Date.now() });
+    }
+    
+    return user;
 }
 
-// Create new user
+// Create new user with initial energy
 async function createUser(userId, initialEnergy = 100) {
     await db.read();
     
     const exists = db.data.users.find(u => u.id === userId);
-    if (exists) return exists;
+    if (exists) {
+        energyCache.set(userId, { user: exists, time: Date.now() });
+        return exists;
+    }
     
     const newUser = {
         id: userId,
         energy: initialEnergy,
-        maxEnergy: 100,
-        lastClaim: null,
         createdAt: Date.now()
     };
     
     db.data.users.push(newUser);
-    await db.write();
+    energyCache.set(userId, { user: newUser, time: Date.now() });
+    
+    queueWrite();
     
     return newUser;
 }
 
-// Get energy amount
+// Check if user exists (cached)
+async function userExists(userId) {
+    const cached = energyCache.get(userId);
+    if (cached && Date.now() - cached.time < CACHE_TTL) {
+        return true;
+    }
+    
+    await db.read();
+    return db.data.users.some(u => u.id === userId);
+}
+
+// Get energy amount (cached)
 async function getEnergy(userId) {
     const user = await getUser(userId);
     
@@ -63,12 +123,16 @@ async function addEnergy(userId, amount) {
     
     if (!user) {
         user = await createUser(userId);
-        await db.read(); // Re-read after creation
+        await db.read();
         user = db.data.users.find(u => u.id === userId);
     }
     
-    user.energy = Math.min(user.energy + amount, user.maxEnergy);
-    await db.write();
+    user.energy += amount;
+    
+    // Update cache
+    energyCache.set(userId, { user, time: Date.now() });
+    
+    queueWrite();
     
     return user.energy;
 }
@@ -86,12 +150,16 @@ async function removeEnergy(userId, amount) {
     }
     
     user.energy = Math.max(user.energy - amount, 0);
-    await db.write();
+    
+    // Update cache
+    energyCache.set(userId, { user, time: Date.now() });
+    
+    queueWrite();
     
     return user.energy;
 }
 
-// Set energy (absolute value)
+// Set energy to specific amount
 async function setEnergy(userId, amount) {
     await db.read();
     
@@ -103,95 +171,41 @@ async function setEnergy(userId, amount) {
         user = db.data.users.find(u => u.id === userId);
     }
     
-    user.energy = Math.min(Math.max(amount, 0), user.maxEnergy);
-    await db.write();
+    user.energy = Math.max(amount, 0);
+    
+    // Update cache
+    energyCache.set(userId, { user, time: Date.now() });
+    
+    queueWrite();
     
     return user.energy;
 }
 
-// Check if user exists
-async function userExists(userId) {
+// Check if user has enough energy (fastest - cache first)
+async function hasEnergy(userId, amount) {
+    const currentEnergy = await getEnergy(userId);
+    return currentEnergy >= amount;
+}
+
+// Get all users (bypasses cache)
+async function getAllUsers() {
     await db.read();
-    return db.data.users.some(u => u.id === userId);
+    return db.data.users;
 }
 
-// Check daily claim availability
-async function canClaimDaily(userId) {
-    const user = await getUser(userId);
+// Delete user
+async function deleteUser(userId) {
+    await db.read();
     
-    if (!user || !user.lastClaim) return true;
-    
-    const now = Date.now();
-    const dayInMs = 24 * 60 * 60 * 1000;
-    
-    return (now - user.lastClaim) >= dayInMs;
-}
-
-// Claim daily reward
-async function claimDaily(userId, reward = 50) {
-    if (!(await canClaimDaily(userId))) {
-        return { success: false, message: 'Already claimed today' };
+    const index = db.data.users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+        db.data.users.splice(index, 1);
+        energyCache.delete(userId);
+        await forceWrite(); // Immediate write for deletion
+        return true;
     }
     
-    await db.read();
-    
-    let user = db.data.users.find(u => u.id === userId);
-    
-    if (!user) {
-        user = await createUser(userId);
-        await db.read();
-        user = db.data.users.find(u => u.id === userId);
-    }
-    
-    user.energy = Math.min(user.energy + reward, user.maxEnergy);
-    user.lastClaim = Date.now();
-    
-    await db.write();
-    
-    return { 
-        success: true, 
-        energy: user.energy,
-        reward: reward
-    };
-}
-
-// Get time until next claim
-async function getNextClaimTime(userId) {
-    const user = await getUser(userId);
-    
-    if (!user || !user.lastClaim) return 0;
-    
-    const now = Date.now();
-    const dayInMs = 24 * 60 * 60 * 1000;
-    const timePassed = now - user.lastClaim;
-    
-    return Math.max(0, dayInMs - timePassed);
-}
-
-// Get leaderboard
-async function getLeaderboard(limit = 10) {
-    await db.read();
-    
-    return db.data.users
-        .sort((a, b) => b.energy - a.energy)
-        .slice(0, limit)
-        .map((user, index) => ({
-            rank: index + 1,
-            id: user.id,
-            energy: user.energy
-        }));
-}
-
-// Reset all users (admin function)
-async function resetAllEnergy() {
-    await db.read();
-    
-    db.data.users.forEach(user => {
-        user.energy = 100;
-        user.lastClaim = null;
-    });
-    
-    await db.write();
+    return false;
 }
 
 // Get statistics
@@ -207,24 +221,42 @@ async function getStats() {
         totalUsers,
         totalEnergy,
         avgEnergy,
-        maxEnergy: Math.max(...users.map(u => u.energy), 0),
-        minEnergy: Math.min(...users.map(u => u.energy), 100)
+        maxEnergy: totalUsers > 0 ? Math.max(...users.map(u => u.energy)) : 0,
+        minEnergy: totalUsers > 0 ? Math.min(...users.map(u => u.energy)) : 0,
+        cacheSize: energyCache.size
     };
 }
 
-// Export all functions
+// Clear cache (useful for debugging)
+function clearCache() {
+    energyCache.clear();
+}
+
+// Graceful shutdown - save all pending writes
+async function shutdown() {
+    if (writeTimeout) {
+        clearTimeout(writeTimeout);
+    }
+    if (needsWrite) {
+        await db.write();
+    }
+    console.log('💾 Energy system saved');
+}
+
+// Export functions
 module.exports = {
     initEnergyDB,
+    userExists,
+    createUser,
     getEnergy,
     addEnergy,
     removeEnergy,
     setEnergy,
-    userExists,
-    createUser,
-    canClaimDaily,
-    claimDaily,
-    getNextClaimTime,
-    getLeaderboard,
-    resetAllEnergy,
-    getStats
+    hasEnergy,
+    getAllUsers,
+    deleteUser,
+    getStats,
+    clearCache,
+    shutdown,
+    forceWrite
 };
