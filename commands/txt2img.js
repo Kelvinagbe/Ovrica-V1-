@@ -18,7 +18,7 @@ const SIZE_PRESETS = {
 async function addLogoWatermark(imageBuffer, width, height) {
     try {
         // Path to your watermark logo
-        const logoPath = path.join(__dirname, '../assets/watermark.png');
+        const logoPath = path.join(__dirname, '../assets/app.png');
         
         // Check if logo exists
         if (!fs.existsSync(logoPath)) {
