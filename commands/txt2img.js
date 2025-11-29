@@ -1,6 +1,9 @@
-// commands/txt2img.js - Text to Image Generator with Size Selection
+// commands/txt2img.js - Text to Image Generator with Sharp Logo Watermark
 
 const axios = require('axios');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
 
 // Available size presets
 const SIZE_PRESETS = {
@@ -11,91 +14,47 @@ const SIZE_PRESETS = {
     '5': { name: 'Ultra Wide', width: 1920, height: 1080, emoji: '🖥️' }
 };
 
-// Store user sessions - EXPORT THIS so main handler can access it
-const userSessions = new Map();
-
-// Function to generate image - EXPORT THIS
-async function generateImage(sock, from, msg, prompt, sizeChoice) {
-    const size = SIZE_PRESETS[sizeChoice];
-    
-    if (!size) {
-        await sock.sendMessage(from, {
-            text: '❌ Invalid size! Please choose 1-5'
-        });
-        return false;
-    }
-    
+// Function to add logo watermark using Sharp
+async function addLogoWatermark(imageBuffer, width, height) {
     try {
-        // Show generating message
-        await sock.sendMessage(from, {
-            text: `🎨 *Generating Image...*\n\n` +
-                `📝 *Prompt:* ${prompt}\n` +
-                `${size.emoji} *Size:* ${size.name} (${size.width}x${size.height})\n\n` +
-                `⏳ Please wait...`
-        });
+        // Path to your watermark logo
+        const logoPath = path.join(__dirname, '../assets/watermark.png');
         
-        // Generate image
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${size.width}&height=${size.height}&nologo=true&seed=${Date.now()}`;
-        
-        // Download image
-        const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 60000
-        });
-        
-        const buffer = Buffer.from(response.data);
-        
-        // Send image with details
-        const caption = `✅ *Image Generated Successfully!*\n\n` +
-            `📝 *Prompt:* ${prompt}\n` +
-            `${size.emoji} *Size:* ${size.name} (${size.width}x${size.height})\n` +
-            `📊 *File Size:* ${(buffer.length / 1024).toFixed(2)} KB\n\n` +
-            `━━━━━━━━━━━━━━━━━\n` +
-            `🎨 *Powered by Pollinations AI*`;
-        
-        await sock.sendMessage(from, {
-            image: buffer,
-            caption: caption,
-            contextInfo: {
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: "120363418958316196@newsletter",
-                    newsletterName: "🎭 Kelvin Tech",
-                    serverMessageId: 200
-                },
-                externalAdReply: {
-                    title: "🎨 AI Image Generator",
-                    body: "OVRICA WhatsApp Bot",
-                    thumbnailUrl: "https://files.catbox.moe/0r5agb.jpg",
-                    sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                    mediaType: 1,
-                    renderLargerThumbnail: false
-                }
-            }
-        }, { quoted: msg });
-        
-        console.log(`✅ Image generated for prompt: ${prompt} | Size: ${size.name}`);
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Image generation error:', error);
-        
-        let errorMessage = '❌ *Image Generation Failed!*\n\n';
-        
-        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-            errorMessage += '📝 *Reason:* Request timeout\n' +
-                '💡 *Try:* Simpler prompt or try again';
-        } else if (error.response?.status === 400) {
-            errorMessage += '📝 *Reason:* Invalid prompt\n' +
-                '💡 *Try:* Use a different description';
-        } else {
-            errorMessage += `📝 *Reason:* ${error.message}\n\n` +
-                '💡 *Try:* Different prompt or try again later';
+        // Check if logo exists
+        if (!fs.existsSync(logoPath)) {
+            console.warn('⚠️ Watermark logo not found, skipping watermark');
+            return imageBuffer;
         }
         
-        await sock.sendMessage(from, { text: errorMessage });
-        return false;
+        // Calculate logo size (10% of image width)
+        const logoWidth = Math.floor(width * 0.1);
+        
+        // Resize logo and add opacity
+        const watermarkLogo = await sharp(logoPath)
+            .resize(logoWidth, null, { fit: 'contain' })
+            .composite([{
+                input: Buffer.from([255, 255, 255, Math.floor(255 * 0.5)]), // 50% opacity
+                raw: { width: 1, height: 1, channels: 4 },
+                tile: true,
+                blend: 'dest-in'
+            }])
+            .toBuffer();
+        
+        // Add watermark to bottom-right corner
+        const watermarkedImage = await sharp(imageBuffer)
+            .composite([{
+                input: watermarkLogo,
+                gravity: 'southeast',
+                blend: 'over'
+            }])
+            .jpeg({ quality: 90 })
+            .toBuffer();
+        
+        return watermarkedImage;
+        
+    } catch (error) {
+        console.error('⚠️ Watermark error:', error.message);
+        return imageBuffer;
     }
 }
 
@@ -103,30 +62,43 @@ module.exports = {
     name: 'txt2img',
     admin: false,
     description: 'Generate images from text prompts',
-    userSessions: userSessions, // Export sessions
-    generateImage: generateImage, // Export generate function
-    
+
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         try {
-            const sender = msg.key.remoteJid;
-            
-            // If user provides prompt
-            if (args.length === 0) {
+            // Check if args provided
+            if (args.length < 2) {
                 return await sendWithTyping(
                     sock,
                     from,
                     `🎨 *Text to Image Generator*\n\n` +
-                    `📝 *Usage:* /txt2img [your prompt]\n\n` +
+                    `📝 *Usage:* /txt2img [size] [prompt]\n\n` +
+                    `*Available Sizes:*\n` +
+                    `⬛ *1* - Square (1024x1024)\n` +
+                    `📱 *2* - Portrait (768x1024)\n` +
+                    `🖼️ *3* - Landscape (1024x768)\n` +
+                    `🎬 *4* - Wide (1280x720)\n` +
+                    `🖥️ *5* - Ultra Wide (1920x1080)\n\n` +
                     `*Example:*\n` +
-                    `/txt2img a beautiful sunset over mountains\n\n` +
-                    `━━━━━━━━━━━━━━━━━\n` +
-                    `💡 After entering your prompt, you'll be asked to choose an image size!`
+                    `/txt2img 1 a beautiful sunset over mountains`
                 );
             }
-            
-            // Get the prompt
-            const prompt = args.join(' ');
-            
+
+            // Get size and prompt
+            const sizeChoice = args[0];
+            const prompt = args.slice(1).join(' ');
+
+            // Validate size
+            const size = SIZE_PRESETS[sizeChoice];
+            if (!size) {
+                return await sendWithTyping(
+                    sock,
+                    from,
+                    '❌ Invalid size! Please choose 1-5\n\n' +
+                    'Use `/txt2img` without arguments to see available sizes.'
+                );
+            }
+
+            // Validate prompt
             if (prompt.length < 3) {
                 return await sendWithTyping(
                     sock,
@@ -134,36 +106,38 @@ module.exports = {
                     '❌ *Prompt too short!*\n\nPlease provide a more detailed description.'
                 );
             }
-            
-            // Store session and ask for size
-            userSessions.set(sender, { prompt, timestamp: Date.now() });
-            
-            // Send size selection message
-            const sizeMessage = `🎨 *Choose Image Size*\n\n` +
-                `📝 *Your Prompt:* ${prompt}\n\n` +
-                `━━━━━━━━━━━━━━━━━\n` +
-                `*Available Sizes:*\n\n` +
-                `${SIZE_PRESETS['1'].emoji} *1.* ${SIZE_PRESETS['1'].name}\n` +
-                `   📐 ${SIZE_PRESETS['1'].width}x${SIZE_PRESETS['1'].height} pixels\n` +
-                `   ✅ Best for: Profile pics, Instagram posts\n\n` +
-                `${SIZE_PRESETS['2'].emoji} *2.* ${SIZE_PRESETS['2'].name}\n` +
-                `   📐 ${SIZE_PRESETS['2'].width}x${SIZE_PRESETS['2'].height} pixels\n` +
-                `   ✅ Best for: Mobile wallpapers, stories\n\n` +
-                `${SIZE_PRESETS['3'].emoji} *3.* ${SIZE_PRESETS['3'].name}\n` +
-                `   📐 ${SIZE_PRESETS['3'].width}x${SIZE_PRESETS['3'].height} pixels\n` +
-                `   ✅ Best for: Desktop wallpapers\n\n` +
-                `${SIZE_PRESETS['4'].emoji} *4.* ${SIZE_PRESETS['4'].name}\n` +
-                `   📐 ${SIZE_PRESETS['4'].width}x${SIZE_PRESETS['4'].height} pixels\n` +
-                `   ✅ Best for: YouTube thumbnails\n\n` +
-                `${SIZE_PRESETS['5'].emoji} *5.* ${SIZE_PRESETS['5'].name}\n` +
-                `   📐 ${SIZE_PRESETS['5'].width}x${SIZE_PRESETS['5'].height} pixels\n` +
-                `   ✅ Best for: Banners, covers\n\n` +
-                `━━━━━━━━━━━━━━━━━\n` +
-                `💡 *Reply with a number (1-5) to select size*\n` +
-                `⏱️ This selection expires in 2 minutes`;
-            
+
+            // Show generating message
+            await sendWithTyping(
+                sock,
+                from,
+                `🎨 *Generating Image...*\n\n` +
+                `📝 *Prompt:* ${prompt}\n` +
+                `${size.emoji} *Size:* ${size.name} (${size.width}x${size.height})\n\n` +
+                `⏳ Please wait...`
+            );
+
+            // Generate image URL
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${size.width}&height=${size.height}&nologo=true&seed=${Date.now()}`;
+
+            // Download image
+            const response = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 60000
+            });
+
+            const buffer = Buffer.from(response.data);
+
+            // Add logo watermark to image
+            const watermarkedBuffer = await addLogoWatermark(buffer, size.width, size.height);
+
+            // Simple caption
+            const caption = `🎨 *Powered by Ovrica AI*`;
+
+            // Send image
             await sock.sendMessage(from, {
-                text: sizeMessage,
+                image: watermarkedBuffer,
+                caption: caption,
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
@@ -173,37 +147,35 @@ module.exports = {
                         serverMessageId: 200
                     },
                     externalAdReply: {
-                        title: "🎨 Select Image Size",
-                        body: "Choose from 5 available sizes",
-                        thumbnailUrl: "./icon.jpg",
+                        title: "🎨 Ovrica AI Image Generator",
+                        body: "OVRICA WhatsApp Bot",
+                        thumbnailUrl: "https://files.catbox.moe/0r5agb.jpg",
                         sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
                         mediaType: 1,
                         renderLargerThumbnail: false
                     }
                 }
             }, { quoted: msg });
-            
-            // Auto-clear session after 2 minutes
-            setTimeout(() => {
-                if (userSessions.has(sender)) {
-                    userSessions.delete(sender);
-                    console.log(`⏱️ Session expired for ${sender}`);
-                }
-            }, 120000); // 2 minutes
-            
+
+            console.log(`✅ Image generated: ${prompt} | Size: ${size.name}`);
+
         } catch (error) {
-            console.error('❌ txt2img command error:', error);
-            await sendWithTyping(sock, from, '❌ An error occurred. Please try again!');
+            console.error('❌ Image generation error:', error);
+
+            let errorMessage = '❌ *Image Generation Failed!*\n\n';
+
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                errorMessage += '📝 *Reason:* Request timeout\n' +
+                    '💡 *Try:* Simpler prompt or try again';
+            } else if (error.response?.status === 400) {
+                errorMessage += '📝 *Reason:* Invalid prompt\n' +
+                    '💡 *Try:* Use a different description';
+            } else {
+                errorMessage += `📝 *Reason:* ${error.message}\n\n` +
+                    '💡 *Try:* Different prompt or try again later';
+            }
+
+            await sendWithTyping(sock, from, errorMessage);
         }
     }
 };
-
-// Cleanup old sessions every 5 minutes
-setInterval(() => {
-    const now = Date.now();
-    for (const [sender, session] of userSessions.entries()) {
-        if (now - session.timestamp > 120000) { // 2 minutes
-            userSessions.delete(sender);
-        }
-    }
-}, 300000); // 5 minutes
