@@ -7,7 +7,7 @@ const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
 // Path to store URLs
-const URL_STORAGE_PATH = path.join(__dirname, '../data/uploaded_urls.json');
+const URL_STORAGE_PATH = path.join(__dirname, '../../data/uploaded_urls.json');
 
 // Ensure data directory exists
 const DATA_DIR = path.join(__dirname, '../data');
