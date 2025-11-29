@@ -17,7 +17,10 @@ const { initializeBot } = require('./utils/bot-manager');
 const { handleMessage } = require('./utils/message-handler');
 const { handleConnection } = require('./utils/connection-handler');
 const statusListener = require('./statusListener');
-const antilink = require('./commands/antilink'); // ✅ IMPORT ANTILINK
+const antilink = require('./commands/antilink');
+
+// ✅ IMPORT ENERGY SYSTEM
+const { initEnergyDB, shutdown } = require('./utils/energy-system');
 
 // ============================================
 // GLOBAL STATE - PROPERLY INITIALIZED
@@ -86,7 +89,7 @@ async function connectToWhatsApp() {
         sock.ev.on('messages.upsert', async ({ messages }) => {
             const msg = messages[0];
             if (!msg.message) return;
-            
+
             // ✅ CHECK ANTILINK FIRST (before command processing)
             try {
                 await antilink.handleMessage(sock, msg);
@@ -95,7 +98,7 @@ async function connectToWhatsApp() {
                     console.error('❌ Antilink error:', error.message);
                 }
             }
-            
+
             // Then handle normal messages/commands
             handleMessage(messages, sock, CONFIG, commands);
         });
@@ -125,45 +128,59 @@ process.on('unhandledRejection', (error) => {
     }
 });
 
-process.on('SIGINT', () => {
+// ✅ GRACEFUL SHUTDOWN WITH ENERGY SAVE
+process.on('SIGINT', async () => {
     console.log('\n👋 Shutting down gracefully...');
+    await shutdown(); // Save pending energy writes
     console.log('💾 Session saved');
     console.log('✅ Goodbye!');
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     console.log('\n👋 Received SIGTERM signal');
+    await shutdown(); // Save pending energy writes
     console.log('💾 Session saved');
     console.log('✅ Goodbye!');
     process.exit(0);
 });
 
 // ============================================
-// STARTUP
+// STARTUP WITH ENERGY SYSTEM
 // ============================================
-initializeBot();
+async function startBot() {
+    // Initialize bot utilities
+    initializeBot();
+    
+    // ✅ Initialize energy system
+    await initEnergyDB();
 
-console.log('📋 Bot Configuration:');
-console.log(`   • Name: ${CONFIG.botName}`);
-console.log(`   • Version: ${CONFIG.version}`);
-console.log(`   • Mode: ${CONFIG.botMode?.toUpperCase() || 'PUBLIC'}`);
-console.log(`   • Admins: ${CONFIG.admins.length}`);
-console.log(`   • Owner: ${CONFIG.ownerNumber || 'Not set'}`);
-console.log(`   • Always Online: ${CONFIG.alwaysOnline ? '✓' : '✗'}`);
-console.log(`   • Auto View Status: ${CONFIG.autoViewStatus ? '✓' : '✗'}`);
-console.log(`   • Auto React: ${CONFIG.autoReact ? '✓' : '✗'}`);
-console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
-console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}`);
-console.log(`   • Anti-Link: ✓ Enabled\n`); // ✅ ADDED
+    console.log('📋 Bot Configuration:');
+    console.log(`   • Name: ${CONFIG.botName}`);
+    console.log(`   • Version: ${CONFIG.version}`);
+    console.log(`   • Mode: ${CONFIG.botMode?.toUpperCase() || 'PUBLIC'}`);
+    console.log(`   • Admins: ${CONFIG.admins.length}`);
+    console.log(`   • Owner: ${CONFIG.ownerNumber || 'Not set'}`);
+    console.log(`   • Always Online: ${CONFIG.alwaysOnline ? '✓' : '✗'}`);
+    console.log(`   • Auto View Status: ${CONFIG.autoViewStatus ? '✓' : '✗'}`);
+    console.log(`   • Auto React: ${CONFIG.autoReact ? '✓' : '✗'}`);
+    console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
+    console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}`);
+    console.log(`   • Anti-Link: ✓ Enabled`);
+    console.log(`   • Energy System: ✓ Enabled\n`); // ✅ ADDED
 
-const authPath = path.join(__dirname, 'sessions');
-const credsPath = path.join(authPath, 'creds.json');
+    const authPath = path.join(__dirname, 'auth_info_baileys');
+    const credsPath = path.join(authPath, 'creds.json');
 
-if (fs.existsSync(credsPath)) {
-    console.log('🔐 Existing session found - reconnecting...\n');
-} else {
-    console.log('🆕 No session found - starting fresh...\n');
+    if (fs.existsSync(credsPath)) {
+        console.log('🔐 Existing session found - reconnecting...\n');
+    } else {
+        console.log('🆕 No session found - starting fresh...\n');
+    }
+
+    // Start WhatsApp connection
+    connectToWhatsApp();
 }
 
-connectToWhatsApp();
+// ✅ START BOT WITH ENERGY SYSTEM
+startBot();
