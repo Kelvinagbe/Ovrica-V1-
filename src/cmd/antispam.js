@@ -1,6 +1,6 @@
 // commands/antispam.js - Anti-Spam Protection (COMPLETE)
 // No external dependencies needed
-
+require('module-alias/register');
 const fs = require('fs');
 const path = require('path');
 
