@@ -1,6 +1,6 @@
 // commands/menu.js - Main menu with fancy reply using local image
 
-const { templates } = require('@/templates');
+const { templates } = require('@/src/tmp/templates');
 const fs = require('fs');
 const path = require('path');
 
