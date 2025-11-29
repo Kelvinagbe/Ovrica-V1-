@@ -2,6 +2,7 @@
 
 const { templates } = require('../../templates');
 const fs = require('fs');
+const path = require('path');
 
 function getBotInfo(config) {
     return {
@@ -65,9 +66,9 @@ module.exports = {
             const CONFIG = require('../../config');
             const text = templates.menu(getBotInfo(CONFIG));
 
-            // Send with local image from path
-            // Change '../../assets/menu.jpg' to your actual image path
-            await sendFancyReply(text, '../../assets/app.png');
+            // Use path.join to properly resolve image path
+            const imagePath = path.join(__dirname, '../../assets/app.png');
+            await sendFancyReply(text, imagePath);
 
             console.log(`📱 Menu sent to ${from}`);
 
