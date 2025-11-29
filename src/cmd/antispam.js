@@ -5,8 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Store antispam settings
-const settingsPath = path.join(__dirname, '@/data/antispam.json');
-const spamDataPath = path.join(__dirname, '@/data/spamdata.json');
+const settingsPath = path.join(__dirname, '../../data/antispam.json');
+const spamDataPath = path.join(__dirname, '../../data/spamdata.json');
 
 // Spam tracking
 let spamUsers = [];
