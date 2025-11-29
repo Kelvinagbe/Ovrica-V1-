@@ -12,16 +12,16 @@ const fs = require('fs');
 const path = require('path');
 
 // Import modules
-const CONFIG = require('./config');
-const commands = require('./commands');
-const { initializeBot } = require('./utils/bot-manager');
-const { handleMessage } = require('./utils/message-handler');
-const { handleConnection } = require('./utils/connection-handler');
+const CONFIG = require('@/config');
+const commands = require('@/commands');
+const { initializeBot } = require('@/utils/bot-manager');
+const { handleMessage } = require('@/utils/message-handler');
+const { handleConnection } = require('@/utils/connection-handler');
 const statusListener = require('./statusListener');
 const antilink = require('./src/cmd/antilink');
 
 // ✅ IMPORT ENERGY SYSTEM
-const { initEnergyDB, shutdown } = require('./utils/energy-system');
+const { initEnergyDB, shutdown } = require('@/utils/energy-system');
 
 // ============================================
 // GLOBAL STATE - PROPERLY INITIALIZED
