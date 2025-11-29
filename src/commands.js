@@ -95,7 +95,7 @@ function reloadTemplates() {
         });
 
         // Clear templates cache
-        delete require.cache[require.resolve('@/templates')];
+        delete require.cache[require.resolve('@/src/tmp/templates')];
         
         // Reload templates
         const templateModule = require('@/templates');
