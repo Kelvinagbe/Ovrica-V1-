@@ -62,7 +62,7 @@ module.exports = {
                 }, { quoted: quoted });
             };
 
-            const CONFIG = require('../config');
+            const CONFIG = require('../../config');
             const text = templates.menu(getBotInfo(CONFIG));
 
             // Send with local image from path
