@@ -1,7 +1,8 @@
 // commands/livescore.js - Live football scores using API-Football (Free)
 
 const axios = require('axios');
-const db = require('@/data/database');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     name: 'livescore',
@@ -15,21 +16,14 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Database should already be initialized by main bot
-            // But we can call init() safely as it checks if already initialized
-            if (!db.i) {
-                await db.init();
-            }
+            // Load config from base64
+            const configPath = path.join(__dirname, '../config/api-config.json');
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
             
-            const API_KEY = await db.config.g('FOOTBALL_API_KEY');
-            
-            if (!API_KEY) {
-                throw new Error('FOOTBALL_API_KEY not found in bot_config');
-            }
+            const API_KEY = Buffer.from(config.football_api_key, 'base64').toString('utf-8');
+            const API_URL = Buffer.from(config.football_api_url, 'base64').toString('utf-8');
 
-            console.log('✅ API Key retrieved:', API_KEY ? 'Found' : 'Not found');
-
-            const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
+            const response = await axios.get(`${API_URL}/fixtures`, {
                 params: {
                     live: 'all'
                 },
@@ -82,11 +76,20 @@ module.exports = {
                 return 0;
             });
 
-            // Build matches list with each match in its own box
-            let matchesList = '';
-            const displayMatches = sortedMatches.slice(0, 15);
+            // Show up to 50 matches
+            const displayMatches = sortedMatches.slice(0, 50);
 
-            displayMatches.forEach((match, index) => {
+            // Split into chunks for WhatsApp message limit
+            const chunkSize = 15;
+            const chunks = [];
+            
+            for (let i = 0; i < displayMatches.length; i += chunkSize) {
+                chunks.push(displayMatches.slice(i, i + chunkSize));
+            }
+
+            // Send first chunk
+            let matchesList = '';
+            chunks[0].forEach((match) => {
                 const homeTeam = match.teams?.home?.name || 'Home';
                 const awayTeam = match.teams?.away?.name || 'Away';
                 const homeScore = match.goals?.home ?? '0';
@@ -95,7 +98,6 @@ module.exports = {
                 const elapsed = match.fixture?.status?.elapsed;
                 const statusShort = match.fixture?.status?.short;
 
-                // Status emoji and time
                 let statusEmoji = '⚽';
                 let timeDisplay = '--';
 
@@ -116,7 +118,6 @@ module.exports = {
                     timeDisplay = 'Full Time';
                 }
 
-                // Each match in its own section
                 matchesList += 
                     `├◆ 🏆 *${league}*\n` +
                     `├◆ ${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}\n` +
@@ -133,13 +134,14 @@ module.exports = {
             });
 
             const liveScoreMessage = 
-                `┌ ❏ *⌜ LIVE SCORES ⌟* ❏\n` +
+                `┌ ❏ *⌜ LIVE SCORES (1/${chunks.length}) ⌟* ❏\n` +
                 `│\n` +
                 matchesList +
                 `└ ❏\n` +
                 `┌ ❏ ◆ *⌜MATCH INFO⌟* ◆\n` +
                 `│\n` +
                 `├◆ 📊 *Total Live:* ${totalMatches} ${totalMatches === 1 ? 'match' : 'matches'}\n` +
+                `├◆ 📄 *Showing:* ${chunks[0].length} of ${displayMatches.length}\n` +
                 `├◆ 🔄 *Refresh:* /livescore\n` +
                 `├◆ 🕐 *Updated:* ${currentTime} WAT\n` +
                 `├◆ 📡 *Source:* API-Football\n` +
@@ -151,11 +153,64 @@ module.exports = {
                 text: liveScoreMessage
             }, { quoted: msg });
 
-            console.log(`⚽ Live scores: ${totalMatches} matches sent to ${from}`);
+            // Send remaining chunks
+            for (let i = 1; i < chunks.length; i++) {
+                let chunkList = '';
+                chunks[i].forEach((match) => {
+                    const homeTeam = match.teams?.home?.name || 'Home';
+                    const awayTeam = match.teams?.away?.name || 'Away';
+                    const homeScore = match.goals?.home ?? '0';
+                    const awayScore = match.goals?.away ?? '0';
+                    const league = match.league?.name || 'League';
+                    const elapsed = match.fixture?.status?.elapsed;
+                    const statusShort = match.fixture?.status?.short;
+
+                    let statusEmoji = '⚽';
+                    let timeDisplay = '--';
+
+                    if (statusShort === 'HT') {
+                        statusEmoji = '⏸️';
+                        timeDisplay = 'Half Time';
+                    } else if (statusShort === '1H' && elapsed) {
+                        statusEmoji = '⏰';
+                        timeDisplay = `${elapsed}'`;
+                    } else if (statusShort === '2H' && elapsed) {
+                        statusEmoji = '⏰';
+                        timeDisplay = `${elapsed}'`;
+                    } else if (statusShort === 'LIVE' && elapsed) {
+                        statusEmoji = '⏰';
+                        timeDisplay = `${elapsed}'`;
+                    } else if (statusShort === 'FT') {
+                        statusEmoji = '✅';
+                        timeDisplay = 'Full Time';
+                    }
+
+                    chunkList += 
+                        `├◆ 🏆 *${league}*\n` +
+                        `├◆ ${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}\n` +
+                        `├◆ ${statusEmoji} ${timeDisplay}\n` +
+                        `│\n`;
+                });
+
+                const chunkMessage = 
+                    `┌ ❏ *⌜ LIVE SCORES (${i + 1}/${chunks.length}) ⌟* ❏\n` +
+                    `│\n` +
+                    chunkList +
+                    `└ ❏\n` +
+                    `> Powered by 🎭Kelvin🎭`;
+
+                await sock.sendMessage(from, {
+                    text: chunkMessage
+                }, { quoted: msg });
+
+                // Delay between messages
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            console.log(`⚽ Live scores: ${totalMatches} matches sent in ${chunks.length} messages to ${from}`);
 
         } catch (error) {
             console.error('❌ Live score error:', error.message);
-            console.error('Stack:', error.stack);
 
             let errorMsg = error.message;
             if (error.response?.status === 429) {
