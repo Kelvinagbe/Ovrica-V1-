@@ -1,5 +1,5 @@
 // commands.js - Auto-load commands from /commands folder
-
+require('module-alias/register');
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
