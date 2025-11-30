@@ -1,4 +1,4 @@
-// commands/livescore.js - Live football scores (Free, No API Key Required)
+// commands/livescore.js - Simple live football scores (No API Key Required)
 
 const axios = require('axios');
 
@@ -6,23 +6,34 @@ module.exports = {
     name: 'livescore',
     admin: false,
     description: 'Get live football match scores',
-    
+
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
             // Send loading message
-            const loadMsg = await sock.sendMessage(from, {
+            await sock.sendMessage(from, {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Using completely free API - No key needed!
-            const response = await axios.get('https://api.allsportsapi.com/football/?met=Livescore&APIkey=', {
-                timeout: 10000
+            // Use TheSportsDB - Completely free, no key needed
+            const response = await axios.get('https://www.thesportsdb.com/api/v1/json/3/livescore.php?s=Soccer', {
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0'
+                }
             });
 
-            const matches = response.data?.result || [];
+            const allEvents = response.data?.events || [];
+            
+            // Filter for live/ongoing matches only
+            const liveMatches = allEvents.filter(match => 
+                match.strStatus && 
+                (match.strStatus.includes('1H') || 
+                 match.strStatus.includes('2H') || 
+                 match.strStatus.includes('HT') ||
+                 match.strStatus === 'In Progress')
+            );
 
-            if (matches.length === 0) {
-                // Edit the loading message instead of deleting
+            if (liveMatches.length === 0) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ LIVE SCORES ⌟* ❏\n` +
                         `│\n` +
@@ -38,41 +49,40 @@ module.exports = {
                         `├◆ 🔄 *Refresh:* /livescore\n` +
                         `│\n` +
                         `└ ❏\n` +
-                        `> Powered by 🎭Kelvin🎭`,
-                    edit: loadMsg.key
+                        `> Powered by 🎭Kelvin🎭`
                 }, { quoted: msg });
             }
 
             // Build matches list
             let matchesList = '';
-            const displayMatches = matches.slice(0, 15);
-            
+            const displayMatches = liveMatches.slice(0, 15);
+
             displayMatches.forEach((match) => {
-                const homeTeam = match.event_home_team || 'Home Team';
-                const awayTeam = match.event_away_team || 'Away Team';
-                const homeScore = match.event_final_result?.split(' - ')[0] || '0';
-                const awayScore = match.event_final_result?.split(' - ')[1] || '0';
-                const league = match.league_name || 'League';
-                const time = match.event_status || '--';
+                const homeTeam = match.strHomeTeam || 'Home Team';
+                const awayTeam = match.strAwayTeam || 'Away Team';
+                const homeScore = match.intHomeScore || '0';
+                const awayScore = match.intAwayScore || '0';
+                const league = match.strLeague || 'League';
+                const status = match.strStatus || '--';
 
                 // Status emoji
-                let statusEmoji = '🔴';
-                if (time.includes('Half')) {
+                let statusEmoji = '⚽';
+                if (status.includes('HT')) {
                     statusEmoji = '⏸️';
-                } else if (time.includes('Finished')) {
-                    statusEmoji = '✅';
-                } else if (time.includes("'")) {
-                    statusEmoji = '⚽';
+                } else if (status.includes('1H')) {
+                    statusEmoji = '🔴';
+                } else if (status.includes('2H')) {
+                    statusEmoji = '🟢';
                 }
 
                 matchesList += 
                     `├◆ 🏆 *${league}*\n` +
                     `├◆ ${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}\n` +
-                    `├◆ ${statusEmoji} ${time}\n` +
+                    `├◆ ${statusEmoji} ${status}\n` +
                     `│\n`;
             });
 
-            const totalMatches = matches.length;
+            const totalMatches = liveMatches.length;
             const currentTime = new Date().toLocaleTimeString('en-US', { 
                 timeZone: 'Africa/Lagos', 
                 hour12: true,
@@ -90,112 +100,37 @@ module.exports = {
                 `├◆ 📊 *Total Live:* ${totalMatches} ${totalMatches === 1 ? 'match' : 'matches'}\n` +
                 `├◆ 🔄 *Refresh:* /livescore\n` +
                 `├◆ 🕐 *Updated:* ${currentTime} WAT\n` +
+                `├◆ 📡 *Source:* TheSportsDB\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `> Powered by 🎭Kelvin🎭`;
 
-            // Edit the loading message with results
             await sock.sendMessage(from, {
-                text: liveScoreMessage,
-                edit: loadMsg.key
+                text: liveScoreMessage
             }, { quoted: msg });
 
             console.log(`⚽ Live scores: ${totalMatches} matches sent to ${from}`);
 
         } catch (error) {
-            console.error('❌ Live score error:', error);
-            
-            // Try alternative free API
-            try {
-                const liveScoreResponse = await axios.get('https://livescore-api.com/api-client/scores/live.json?key=demo&secret=demo', {
-                    timeout: 10000
-                });
+            console.error('❌ Live score error:', error.message);
 
-                const liveMatches = liveScoreResponse.data?.data?.match || [];
-
-                if (liveMatches.length === 0) {
-                    return await sock.sendMessage(from, {
-                        text: `┌ ❏ *⌜ LIVE SCORES ⌟* ❏\n` +
-                            `│\n` +
-                            `├◆ ⚽ *No live matches at the moment*\n` +
-                            `│\n` +
-                            `├◆ 🕐 *Current Time:* ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
-                            `├◆ 🔄 *Try again:* /livescore\n` +
-                            `│\n` +
-                            `└ ❏\n` +
-                            `> Powered by 🎭Kelvin🎭`
-                    }, { quoted: msg });
-                }
-
-                let matchesList = '';
-                liveMatches.slice(0, 15).forEach((match) => {
-                    const homeTeam = match.home_name || 'Home';
-                    const awayTeam = match.away_name || 'Away';
-                    const score = match.score || '0 - 0';
-                    const league = match.league_name || 'League';
-                    const time = match.time || '--';
-
-                    matchesList += 
-                        `├◆ 🏆 *${league}*\n` +
-                        `├◆ ${homeTeam} ${score} ${awayTeam}\n` +
-                        `├◆ ⚽ ${time}'\n` +
-                        `│\n`;
-                });
-
-                const liveScoreMessage = 
-                    `┌ ❏ *⌜ LIVE SCORES ⌟* ❏\n` +
+            await sock.sendMessage(from, {
+                text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
                     `│\n` +
-                    matchesList +
-                    `└ ❏\n` +
-                    `┌ ❏ ◆ *⌜MATCH INFO⌟* ◆\n` +
+                    `├◆ ❌ *Unable to fetch live scores*\n` +
+                    `├◆ 📝 *Error:* ${error.message}\n` +
                     `│\n` +
-                    `├◆ 📊 *Total Live:* ${liveMatches.length}\n` +
-                    `├◆ 🔄 *Refresh:* /livescore\n` +
-                    `├◆ 🕐 *Updated:* ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
+                    `├◆ 💡 *Possible reasons:*\n` +
+                    `├◆    • No internet connection\n` +
+                    `├◆    • API is temporarily down\n` +
+                    `├◆    • Request timeout\n` +
+                    `│\n` +
+                    `├◆ 🔄 *Try again:* /livescore\n` +
+                    `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
                     `│\n` +
                     `└ ❏\n` +
-                    `> Powered by 🎭Kelvin🎭`;
-
-                await sock.sendMessage(from, {
-                    text: liveScoreMessage,
-                    contextInfo: {
-                        forwardingScore: 999,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: "120363418958316196@newsletter",
-                            newsletterName: "🎭 Kelvin Tech",
-                            serverMessageId: 200
-                        },
-                        externalAdReply: {
-                            title: "⚽ Live Football Scores",
-                            body: `${liveMatches.length} live matches`,
-                            thumbnailUrl: "./icon.jpg",
-                            sourceUrl: "https://whatsapp.com/channel/0029VbBODJPIiRonb0FL8q10",
-                            mediaType: 1,
-                            renderLargerThumbnail: false
-                        }
-                    }
-                }, { quoted: msg });
-
-            } catch (altError) {
-                // Final fallback - simple message
-                await sock.sendMessage(from, {
-                    text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
-                        `│\n` +
-                        `├◆ ❌ *Unable to fetch live scores*\n` +
-                        `├◆ 📝 *Reason:* Connection issue\n` +
-                        `│\n` +
-                        `├◆ 💡 *Try:*\n` +
-                        `├◆    • Check your internet\n` +
-                        `├◆    • Wait a moment\n` +
-                        `├◆    • Use /livescore again\n` +
-                        `│\n` +
-                        `├◆ 🕐 *Current Time:* ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `> Powered by 🎭Kelvin🎭`
-                }, { quoted: msg });
-            }
+                    `> Powered by 🎭Kelvin🎭`
+            }, { quoted: msg });
         }
     }
 };
