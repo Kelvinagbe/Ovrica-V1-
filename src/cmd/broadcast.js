@@ -28,7 +28,7 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
 
-        const CONFIG = require('../config');
+        const CONFIG = require('@/config');
 
         if (args.length === 0) {
 
