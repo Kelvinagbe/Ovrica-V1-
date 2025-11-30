@@ -5,7 +5,7 @@
 
 module.exports = {
     name: 'mode',
-    admin: false, // Only admins can change mode
+    admin: true, // Only admins can change mode
     description: 'Switch bot between public and private mode',
     
     async exec(sock, from, args, msg, isAdmin, sendWithTyping) {
