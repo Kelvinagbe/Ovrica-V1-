@@ -100,21 +100,29 @@ module.exports = {
             
             console.log('✅ Sticker processed');
 
-            // Send sticker with custom pack info
-            await sock.sendMessage(from, {
-                sticker: processedBuffer,
-                packname: packName,
-                author: authorName
-            });
-
-            // Send success message
-            const successMsg = `✅ *Sticker Taken Successfully!*\n\n` +
-                `📦 *Pack:* ${packName}\n` +
-                `✍️ *Author:* ${authorName}\n\n` +
-                `💡 *Tip:* Now you can add this to your WhatsApp favorites!\n` +
-                `⭐ Long press the sticker → Add to Favorites`;
+            // Send sticker with custom pack info using exif metadata
+            const Exif = require('node-webpmux');
+            const exif = new Exif.Image();
+            const json = {
+                'sticker-pack-id': 'com.snowcorp.stickerly.android.stickercontentprovider',
+                'sticker-pack-name': packName,
+                'sticker-pack-publisher': authorName,
+                'emojis': ['😀']
+            };
             
-            await sendWithTyping(sock, from, { text: successMsg });
+            const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
+            const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
+            const exifData = Buffer.concat([exifAttr, jsonBuffer]);
+            exifData.writeUIntLE(jsonBuffer.length, 14, 4);
+            
+            await exif.load(processedBuffer);
+            exif.exif = exifData;
+            const finalBuffer = await exif.save(null);
+            
+            // Send sticker
+            await sock.sendMessage(from, {
+                sticker: finalBuffer
+            });
             
             console.log('✅ Sticker taken and sent successfully');
 
