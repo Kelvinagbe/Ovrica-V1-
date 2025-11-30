@@ -12,22 +12,15 @@
         "commands": [
           "/tagall",
           "/hidetag",
-          "/ban",
-          "/promote",
-          "/kick"
+          "/lock",
+          "/unlock"
         ]
       },
       {
         "title": "𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗥 𝗠𝗘𝗡𝗨",
         "commands": [
-          "/play",
-          "/song",
-          "/music",
-          "/video",
-          "/instagram",
-          "/facebook",
-          "/tiktok",
-          "/youtube"
+          "/song"
+          
         ]
       },
       {
