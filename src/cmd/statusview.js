@@ -1,6 +1,6 @@
 // commands/statusview.js - Toggle automatic status viewing
 
-const statusListener = require('../statusListener');
+const statusListener = require('@/statusListener');
 
 module.exports = {
     name: 'statusview',
