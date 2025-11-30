@@ -2,6 +2,8 @@
 
 const axios = require('axios');
 const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
 
 // Image size presets
 const SIZE_PRESETS = {
@@ -12,11 +14,17 @@ const SIZE_PRESETS = {
     '5': { name: 'Ultra Wide', width: 1920, height: 1080, emoji: '🖥️' }
 };
 
+// Load config
+const configPath = path.join(__dirname, '../config/api-config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+const API_BASE_URL = Buffer.from(config.x5c, 'base64').toString('utf-8');
+const WATERMARK_TEXT = Buffer.from(config.x5d, 'base64').toString('utf-8');
+
 // Create SVG text watermark
 function createTextWatermark(width, height) {
     const fontSize = Math.floor(width * 0.04);
     const padding = Math.floor(width * 0.02);
-    
+
     return Buffer.from(`
         <svg width="${width}" height="${height}">
             <defs>
@@ -37,7 +45,7 @@ function createTextWatermark(width, height) {
                 x="${width - padding}" 
                 y="${height - padding}" 
                 text-anchor="end" 
-                class="watermark-text">OVRICA AI</text>
+                class="watermark-text">${WATERMARK_TEXT}</text>
         </svg>
     `);
 }
@@ -46,12 +54,12 @@ function createTextWatermark(width, height) {
 async function addWatermark(imageBuffer, width, height) {
     try {
         const watermark = createTextWatermark(width, height);
-        
+
         return await sharp(imageBuffer)
             .composite([{ input: watermark, gravity: 'southeast' }])
             .jpeg({ quality: 90 })
             .toBuffer();
-            
+
     } catch (error) {
         console.error('⚠️ Watermark failed:', error.message);
         return imageBuffer;
@@ -109,8 +117,8 @@ module.exports = {
                 `⏳ Please wait...`
             );
 
-            // Generate image
-            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${size.width}&height=${size.height}&nologo=true&seed=${Date.now()}`;
+            // Generate image using config
+            const imageUrl = `${API_BASE_URL}${encodeURIComponent(prompt)}?width=${size.width}&height=${size.height}&nologo=true&seed=${Date.now()}`;
 
             const response = await axios.get(imageUrl, {
                 responseType: 'arraybuffer',
