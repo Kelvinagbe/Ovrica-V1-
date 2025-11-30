@@ -15,12 +15,12 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Get API key directly from database
+            // Get API key from bot_config collection
             await db.init();
             const API_KEY = await db.config.g('FOOTBALL_API_KEY');
             
             if (!API_KEY) {
-                throw new Error('FOOTBALL_API_KEY not found in database');
+                throw new Error('FOOTBALL_API_KEY not found in bot_config');
             }
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
