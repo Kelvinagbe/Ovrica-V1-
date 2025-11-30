@@ -1,6 +1,7 @@
 // commands/livescore.js - Live football scores using API-Football (Free)
 
 const axios = require('axios');
+const { getAllEnv } = require('../env'); // Import from env.js
 
 module.exports = {
     name: 'livescore',
@@ -14,9 +15,13 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // API-Football has a free tier - Get your free key at: https://dashboard.api-football.com/register
-            // Free plan: 100 requests/day
-            const API_KEY = '6e1e3679e7d21b117bcc728c36df3b6c'; // Replace with your free API key
+            // Get all environment variables from env.js
+            const env = await getAllEnv();
+            const API_KEY = env.FOOTBALL_API_KEY;
+            
+            if (!API_KEY) {
+                throw new Error('FOOTBALL_API_KEY not configured in database');
+            }
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
                 params: {
@@ -62,10 +67,10 @@ module.exports = {
             const sortedMatches = matches.sort((a, b) => {
                 const leagueA = a.league?.name || '';
                 const leagueB = b.league?.name || '';
-                
+
                 const priorityA = priorityLeagues.some(pl => leagueA.includes(pl));
                 const priorityB = priorityLeagues.some(pl => leagueB.includes(pl));
-                
+
                 if (priorityA && !priorityB) return -1;
                 if (!priorityA && priorityB) return 1;
                 return 0;
@@ -87,7 +92,7 @@ module.exports = {
                 // Status emoji and time
                 let statusEmoji = '⚽';
                 let timeDisplay = '--';
-                
+
                 if (statusShort === 'HT') {
                     statusEmoji = '⏸️';
                     timeDisplay = 'Half Time';
