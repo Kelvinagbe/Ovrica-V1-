@@ -1,6 +1,6 @@
 // commands/info.js
 
-const { templates } = require('../templates');
+const { templates } = require('../tmp/templates');
 
 function getBotInfo(config) {
 
