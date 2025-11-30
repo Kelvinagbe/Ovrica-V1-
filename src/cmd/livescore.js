@@ -1,4 +1,4 @@
-// commands/livescore.js - Simple live football scores (No API Key Required)
+// commands/livescore.js - Live football scores using API-Football (Free)
 
 const axios = require('axios');
 
@@ -14,26 +14,46 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Use TheSportsDB - Completely free, no key needed
-            const response = await axios.get('https://www.thesportsdb.com/api/v1/json/3/livescore.php?s=Soccer', {
-                timeout: 10000,
+            // API-Football has a free tier - Get your free key at: https://dashboard.api-football.com/register
+            // Free plan: 100 requests/day
+            const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your free API key
+            
+            if (API_KEY === '6e1e3679e7d21b117bcc728c36df3b6c') {
+                return await sock.sendMessage(from, {
+                    text: `┌ ❏ *⌜ SETUP REQUIRED ⌟* ❏\n` +
+                        `│\n` +
+                        `├◆ ⚠️ *API Key Not Configured*\n` +
+                        `│\n` +
+                        `├◆ 📝 *Setup Steps:*\n` +
+                        `├◆ 1️⃣ Visit: https://dashboard.api-football.com/register\n` +
+                        `├◆ 2️⃣ Create a FREE account\n` +
+                        `├◆ 3️⃣ Get your API key from dashboard\n` +
+                        `├◆ 4️⃣ Add it to src/cmd/livescore.js line 14\n` +
+                        `│\n` +
+                        `├◆ 🎁 *Free Plan Includes:*\n` +
+                        `├◆    • 100 requests per day\n` +
+                        `├◆    • All competitions & endpoints\n` +
+                        `├◆    • Live scores, fixtures, standings\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `> Powered by 🎭Kelvin🎭`
+                }, { quoted: msg });
+            }
+
+            const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
+                params: {
+                    live: 'all'
+                },
                 headers: {
-                    'User-Agent': 'Mozilla/5.0'
-                }
+                    'x-rapidapi-key': API_KEY,
+                    'x-rapidapi-host': 'v3.football.api-sports.io'
+                },
+                timeout: 10000
             });
 
-            const allEvents = response.data?.events || [];
-            
-            // Filter for live/ongoing matches only
-            const liveMatches = allEvents.filter(match => 
-                match.strStatus && 
-                (match.strStatus.includes('1H') || 
-                 match.strStatus.includes('2H') || 
-                 match.strStatus.includes('HT') ||
-                 match.strStatus === 'In Progress')
-            );
+            const matches = response.data?.response || [];
 
-            if (liveMatches.length === 0) {
+            if (matches.length === 0) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ LIVE SCORES ⌟* ❏\n` +
                         `│\n` +
@@ -55,34 +75,46 @@ module.exports = {
 
             // Build matches list
             let matchesList = '';
-            const displayMatches = liveMatches.slice(0, 15);
+            const displayMatches = matches.slice(0, 15);
 
             displayMatches.forEach((match) => {
-                const homeTeam = match.strHomeTeam || 'Home Team';
-                const awayTeam = match.strAwayTeam || 'Away Team';
-                const homeScore = match.intHomeScore || '0';
-                const awayScore = match.intAwayScore || '0';
-                const league = match.strLeague || 'League';
-                const status = match.strStatus || '--';
+                const homeTeam = match.teams?.home?.name || 'Home';
+                const awayTeam = match.teams?.away?.name || 'Away';
+                const homeScore = match.goals?.home ?? '0';
+                const awayScore = match.goals?.away ?? '0';
+                const league = match.league?.name || 'League';
+                const elapsed = match.fixture?.status?.elapsed;
+                const statusShort = match.fixture?.status?.short;
 
-                // Status emoji
+                // Status emoji and time
                 let statusEmoji = '⚽';
-                if (status.includes('HT')) {
+                let timeDisplay = '--';
+                
+                if (statusShort === 'HT') {
                     statusEmoji = '⏸️';
-                } else if (status.includes('1H')) {
+                    timeDisplay = 'Half Time';
+                } else if (statusShort === '1H' && elapsed) {
                     statusEmoji = '🔴';
-                } else if (status.includes('2H')) {
+                    timeDisplay = `${elapsed}'`;
+                } else if (statusShort === '2H' && elapsed) {
                     statusEmoji = '🟢';
+                    timeDisplay = `${elapsed}'`;
+                } else if (statusShort === 'LIVE' && elapsed) {
+                    statusEmoji = '⚡';
+                    timeDisplay = `${elapsed}'`;
+                } else if (statusShort === 'FT') {
+                    statusEmoji = '✅';
+                    timeDisplay = 'Full Time';
                 }
 
                 matchesList += 
                     `├◆ 🏆 *${league}*\n` +
                     `├◆ ${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}\n` +
-                    `├◆ ${statusEmoji} ${status}\n` +
+                    `├◆ ${statusEmoji} ${timeDisplay}\n` +
                     `│\n`;
             });
 
-            const totalMatches = liveMatches.length;
+            const totalMatches = matches.length;
             const currentTime = new Date().toLocaleTimeString('en-US', { 
                 timeZone: 'Africa/Lagos', 
                 hour12: true,
@@ -100,7 +132,7 @@ module.exports = {
                 `├◆ 📊 *Total Live:* ${totalMatches} ${totalMatches === 1 ? 'match' : 'matches'}\n` +
                 `├◆ 🔄 *Refresh:* /livescore\n` +
                 `├◆ 🕐 *Updated:* ${currentTime} WAT\n` +
-                `├◆ 📡 *Source:* TheSportsDB\n` +
+                `├◆ 📡 *Source:* API-Football\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `> Powered by 🎭Kelvin🎭`;
@@ -114,16 +146,23 @@ module.exports = {
         } catch (error) {
             console.error('❌ Live score error:', error.message);
 
+            let errorMsg = error.message;
+            if (error.response?.status === 429) {
+                errorMsg = 'Daily API limit reached (100 requests/day on free plan)';
+            } else if (error.response?.status === 401) {
+                errorMsg = 'Invalid API key - Please check your configuration';
+            }
+
             await sock.sendMessage(from, {
                 text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
                     `│\n` +
                     `├◆ ❌ *Unable to fetch live scores*\n` +
-                    `├◆ 📝 *Error:* ${error.message}\n` +
+                    `├◆ 📝 *Error:* ${errorMsg}\n` +
                     `│\n` +
                     `├◆ 💡 *Possible reasons:*\n` +
+                    `├◆    • API key not configured\n` +
+                    `├◆    • Daily limit exceeded (100/day)\n` +
                     `├◆    • No internet connection\n` +
-                    `├◆    • API is temporarily down\n` +
-                    `├◆    • Request timeout\n` +
                     `│\n` +
                     `├◆ 🔄 *Try again:* /livescore\n` +
                     `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
