@@ -2,7 +2,7 @@
 module.exports = {
     name: 'lock',
     description: 'Lock group - only admins can send messages',
-    admin: false, // Don't use config admin check
+    admin: true, // Don't use config admin check
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         console.log('\n');
