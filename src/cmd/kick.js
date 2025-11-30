@@ -1,4 +1,4 @@
-const { isBotAdmin, getMentionedJids, getQuotedParticipant } = require('../utils/helpers/groupHelpers');
+const { isBotAdmin, getMentionedJids, getQuotedParticipant } = require('@/utils/helpers/groupHelpers');
 
 module.exports = {
   name: 'kick',
