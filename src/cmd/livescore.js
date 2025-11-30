@@ -17,28 +17,6 @@ module.exports = {
             // API-Football has a free tier - Get your free key at: https://dashboard.api-football.com/register
             // Free plan: 100 requests/day
             const API_KEY = '6e1e3679e7d21b117bcc728c36df3b6c'; // Replace with your free API key
-            
-            if (API_KEY === 'YOUR_API_KEY_HERE') {
-                return await sock.sendMessage(from, {
-                    text: `┌ ❏ *⌜ SETUP REQUIRED ⌟* ❏\n` +
-                        `│\n` +
-                        `├◆ ⚠️ *API Key Not Configured*\n` +
-                        `│\n` +
-                        `├◆ 📝 *Setup Steps:*\n` +
-                        `├◆ 1️⃣ Visit: https://dashboard.api-football.com/register\n` +
-                        `├◆ 2️⃣ Create a FREE account\n` +
-                        `├◆ 3️⃣ Get your API key from dashboard\n` +
-                        `├◆ 4️⃣ Add it to src/cmd/livescore.js line 14\n` +
-                        `│\n` +
-                        `├◆ 🎁 *Free Plan Includes:*\n` +
-                        `├◆    • 100 requests per day\n` +
-                        `├◆    • All competitions & endpoints\n` +
-                        `├◆    • Live scores, fixtures, standings\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `> Powered by 🎭Kelvin🎭`
-                }, { quoted: msg });
-            }
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
                 params: {
@@ -73,11 +51,31 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            // Build matches list
-            let matchesList = '';
-            const displayMatches = matches.slice(0, 15);
+            // Priority leagues to show first
+            const priorityLeagues = [
+                'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
+                'UEFA Champions League', 'UEFA Europa League', 'FIFA World Cup',
+                'Premier League', 'Championship', 'FA Cup', 'Carabao Cup'
+            ];
 
-            displayMatches.forEach((match) => {
+            // Sort matches: priority leagues first, then others
+            const sortedMatches = matches.sort((a, b) => {
+                const leagueA = a.league?.name || '';
+                const leagueB = b.league?.name || '';
+                
+                const priorityA = priorityLeagues.some(pl => leagueA.includes(pl));
+                const priorityB = priorityLeagues.some(pl => leagueB.includes(pl));
+                
+                if (priorityA && !priorityB) return -1;
+                if (!priorityA && priorityB) return 1;
+                return 0;
+            });
+
+            // Build matches list with each match in its own box
+            let matchesList = '';
+            const displayMatches = sortedMatches.slice(0, 15);
+
+            displayMatches.forEach((match, index) => {
                 const homeTeam = match.teams?.home?.name || 'Home';
                 const awayTeam = match.teams?.away?.name || 'Away';
                 const homeScore = match.goals?.home ?? '0';
@@ -94,19 +92,20 @@ module.exports = {
                     statusEmoji = '⏸️';
                     timeDisplay = 'Half Time';
                 } else if (statusShort === '1H' && elapsed) {
-                    statusEmoji = '🔴';
+                    statusEmoji = '⏰';
                     timeDisplay = `${elapsed}'`;
                 } else if (statusShort === '2H' && elapsed) {
-                    statusEmoji = '🟢';
+                    statusEmoji = '⏰';
                     timeDisplay = `${elapsed}'`;
                 } else if (statusShort === 'LIVE' && elapsed) {
-                    statusEmoji = '⚡';
+                    statusEmoji = '⏰';
                     timeDisplay = `${elapsed}'`;
                 } else if (statusShort === 'FT') {
                     statusEmoji = '✅';
                     timeDisplay = 'Full Time';
                 }
 
+                // Each match in its own section
                 matchesList += 
                     `├◆ 🏆 *${league}*\n` +
                     `├◆ ${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}\n` +
