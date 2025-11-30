@@ -1,7 +1,7 @@
 // commands/livescore.js - Live football scores using API-Football (Free)
 require('module-alias/register')
 const axios = require('axios');
-const { getAllEnv } = require('@/utils/env'); // Import from env.js
+const { getAllEnv } = require('@/utils/env');
 
 module.exports = {
     name: 'livescore',
@@ -10,23 +10,19 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
-            // Send loading message
             await sock.sendMessage(from, {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Get all environment variables from env.js
             const env = await getAllEnv();
             const API_KEY = env.FOOTBALL_API_KEY;
             
             if (!API_KEY) {
-                throw new Error('FOOTBALL_API_KEY not configured in database');
+                throw new Error('FOOTBALL_API_KEY not found in database');
             }
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
-                params: {
-                    live: 'all'
-                },
+                params: { live: 'all' },
                 headers: {
                     'x-rapidapi-key': API_KEY,
                     'x-rapidapi-host': 'v3.football.api-sports.io'
