@@ -6,15 +6,16 @@ async function getAllEnv() {
     
     const allConfigs = await db.config.l();
     
-    console.log('All Environment Variables:');
+    const envObj = {};
     allConfigs.forEach(config => {
-      console.log(`${config.name}: ${config.value}`);
+      envObj[config.name] = config.value;
     });
     
-    await db.close();
+    return envObj;
   } catch (error) {
     console.error('Error:', error);
+    return {};
   }
 }
 
-getAllEnv();
+module.exports = { getAllEnv };
