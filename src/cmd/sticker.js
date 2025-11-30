@@ -2,7 +2,7 @@
 
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
-const { templates } = require('../templates');
+const { templates } = require('../tmp/templates');
 
 module.exports = {
 
