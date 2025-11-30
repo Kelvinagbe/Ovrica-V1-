@@ -81,10 +81,10 @@ module.exports = {
             
             console.log('✅ Sticker processed, size:', stickerBuffer.length);
 
-            // Send sticker
+            // Send sticker with fancy name
             await sock.sendMessage(from, {
                 sticker: stickerBuffer,
-                packname: '🤖 OVRICA-V1',
+                packname: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                 author: '🎭 Kelvin'
             });
             
