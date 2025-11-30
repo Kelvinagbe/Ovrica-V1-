@@ -16,9 +16,9 @@ module.exports = {
 
             // API-Football has a free tier - Get your free key at: https://dashboard.api-football.com/register
             // Free plan: 100 requests/day
-            const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your free API key
+            const API_KEY = '6e1e3679e7d21b117bcc728c36df3b6c'; // Replace with your free API key
             
-            if (API_KEY === '6e1e3679e7d21b117bcc728c36df3b6c') {
+            if (API_KEY === 'YOUR_API_KEY_HERE') {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ SETUP REQUIRED ⌟* ❏\n` +
                         `│\n` +
