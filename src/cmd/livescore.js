@@ -15,13 +15,19 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Get API key from bot_config collection
-            await db.init();
+            // Database should already be initialized by main bot
+            // But we can call init() safely as it checks if already initialized
+            if (!db.i) {
+                await db.init();
+            }
+            
             const API_KEY = await db.config.g('FOOTBALL_API_KEY');
             
             if (!API_KEY) {
                 throw new Error('FOOTBALL_API_KEY not found in bot_config');
             }
+
+            console.log('✅ API Key retrieved:', API_KEY ? 'Found' : 'Not found');
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
                 params: {
@@ -149,6 +155,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Live score error:', error.message);
+            console.error('Stack:', error.stack);
 
             let errorMsg = error.message;
             if (error.response?.status === 429) {
