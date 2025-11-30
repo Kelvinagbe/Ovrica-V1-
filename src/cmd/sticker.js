@@ -1,4 +1,7 @@
+// src/cmd/sticker.js
+
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const sharp = require('sharp');
 const { templates } = require('../tmp/templates');
 
 module.exports = {
@@ -29,9 +32,18 @@ module.exports = {
                 }
             );
 
+            // Process image with sharp to ensure it's in the right format
+            const processedBuffer = await sharp(buffer)
+                .resize(512, 512, {
+                    fit: 'contain',
+                    background: { r: 0, g: 0, b: 0, alpha: 0 }
+                })
+                .webp()
+                .toBuffer();
+
             // Send as sticker
             await sock.sendMessage(from, {
-                sticker: buffer,
+                sticker: processedBuffer,
                 packname: '🤖 OVRICA-V1',
                 author: '🎭 Kelvin'
             });
