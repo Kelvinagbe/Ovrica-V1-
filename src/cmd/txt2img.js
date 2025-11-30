@@ -15,7 +15,7 @@ const SIZE_PRESETS = {
 };
 
 // Load config
-const configPath = path.join(__dirname, '../config/api-config.json');
+const configPath = path.join(__dirname, '../config/0x1.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 const API_BASE_URL = Buffer.from(config.x5c, 'base64').toString('utf-8');
 const WATERMARK_TEXT = Buffer.from(config.x5d, 'base64').toString('utf-8');
