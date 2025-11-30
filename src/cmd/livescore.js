@@ -1,7 +1,7 @@
 // commands/livescore.js - Live football scores using API-Football (Free)
-require('module-alias/register')
+
 const axios = require('axios');
-const { getAllEnv } = require('@/utils/env');
+const db = require('@/data/database');
 
 module.exports = {
     name: 'livescore',
@@ -10,19 +10,23 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
+            // Send loading message
             await sock.sendMessage(from, {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            const env = await getAllEnv();
-            const API_KEY = env.FOOTBALL_API_KEY;
+            // Get API key directly from database
+            await db.init();
+            const API_KEY = await db.config.g('FOOTBALL_API_KEY');
             
             if (!API_KEY) {
                 throw new Error('FOOTBALL_API_KEY not found in database');
             }
 
             const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
-                params: { live: 'all' },
+                params: {
+                    live: 'all'
+                },
                 headers: {
                     'x-rapidapi-key': API_KEY,
                     'x-rapidapi-host': 'v3.football.api-sports.io'
@@ -56,7 +60,7 @@ module.exports = {
             const priorityLeagues = [
                 'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
                 'UEFA Champions League', 'UEFA Europa League', 'FIFA World Cup',
-                'Premier League', 'Championship', 'FA Cup', 'Carabao Cup'
+                'Championship', 'FA Cup', 'Carabao Cup'
             ];
 
             // Sort matches: priority leagues first, then others
