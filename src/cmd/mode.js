@@ -9,7 +9,7 @@ module.exports = {
     description: 'Switch bot between public and private mode',
     
     async exec(sock, from, args, msg, isAdmin, sendWithTyping) {
-        const CONFIG = require('../config');
+        const CONFIG = require('@/config');
         const fs = require('fs');
         const path = require('path');
         
@@ -48,7 +48,7 @@ module.exports = {
         
         // Update config file
         try {
-            const configPath = path.join(__dirname, '../config.js');
+            const configPath = path.join(__dirname, '@/config.js');
             let configContent = fs.readFileSync(configPath, 'utf8');
             
             // Check if botMode exists in config
