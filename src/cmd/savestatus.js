@@ -11,7 +11,7 @@ module.exports = {
         console.log('🔍 SAVESTATUS COMMAND RECEIVED');
         
         try {
-            const CONFIG = require('../config');
+            const CONFIG = require('@/config');
 
             // Check if user replied to a message
             const quotedMsg = msg.message?.extendedTextMessage?.contextInfo;
