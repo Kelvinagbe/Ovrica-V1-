@@ -7,7 +7,7 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 // Load templates
 let templates, design, getServerStatus;
 try {
-    const templateModule = require('@/src/tmp/templates');
+    const templateModule = require('./tmp/templates');
     templates = templateModule.templates;
     design = templateModule.design;
     getServerStatus = templateModule.getServerStatus;
@@ -37,7 +37,7 @@ async function sendWithTyping(sock, jid, content) {
 
 // Auto-load commands from /commands folder
 const commands = {};
-const commandsDir = path.join(__dirname, '@/src/cmd');
+const commandsDir = path.join(__dirname, './cmd');
 let commandsLoaded = false; // Track if we've already logged
 
 function loadCommands(silent = false) {
@@ -82,9 +82,9 @@ function reloadTemplates() {
     try {
         // Clear all JSON file caches
         const jsonFiles = [
-            '@/src/tmp/json/commands.json',
-            '@/src/tmp/symbols.json',
-            '@/src/head.json'
+            './tmp/json/commands.json',
+            './tmp/symbols.json',
+            './head.json'
         ];
         
         jsonFiles.forEach(file => {
@@ -98,7 +98,7 @@ function reloadTemplates() {
         delete require.cache[require.resolve('@/src/tmp/templates')];
         
         // Reload templates
-        const templateModule = require('@/templates');
+        const templateModule = require('./tmp/templates');
         templates = templateModule.templates;
         design = templateModule.design;
         getServerStatus = templateModule.getServerStatus;
