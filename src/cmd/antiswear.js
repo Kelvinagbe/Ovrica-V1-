@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Store antiswear settings
-const settingsPath = path.join(__dirname, '@/data/antiswear.json');
+const settingsPath = path.join(__dirname, '../../data/antiswear.json');
 
 // Default bad words list
 const defaultBadWords = [
