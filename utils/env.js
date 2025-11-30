@@ -1,4 +1,4 @@
-const db = require('@/data/database');
+const db = require('@/database');
 
 async function getAllEnv() {
   try {
@@ -13,9 +13,10 @@ async function getAllEnv() {
     
     return envObj;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error getting env:', error);
     return {};
   }
 }
 
+// Export the function
 module.exports = { getAllEnv };
