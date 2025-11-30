@@ -18,5 +18,4 @@ async function getAllEnv() {
   }
 }
 
-// Export the function
 module.exports = { getAllEnv };
