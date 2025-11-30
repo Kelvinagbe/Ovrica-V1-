@@ -67,7 +67,7 @@ module.exports = {
             const text = templates.menu(getBotInfo(CONFIG));
 
             // Use path.join to properly resolve image path
-            const imagePath = path.join(__dirname, '@/assets/app.png');
+            const imagePath = path.join(__dirname, '../../assets/app.png');
             await sendFancyReply(text, imagePath);
 
             console.log(`📱 Menu sent to ${from}`);
