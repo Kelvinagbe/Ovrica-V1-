@@ -1,6 +1,6 @@
 // commands/autotyping.js
 
-const { templates } = require('../templates');
+const { templates } = require('../tmp/templates');
 
 const fs = require('fs');
 
