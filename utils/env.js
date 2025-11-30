@@ -1,4 +1,4 @@
-const db = require('@/database');
+const db = require('@/data/database');
 
 async function getAllEnv() {
   try {
