@@ -16,12 +16,12 @@ module.exports = {
                 text: '⚽ *Fetching live scores...*'
             }, { quoted: msg });
 
-            // Load config from base64
+            // Load config from obfuscated base64
             const configPath = path.join(__dirname, '../config/api-config.json');
             const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
             
-            const API_KEY = Buffer.from(config.football_api_key, 'base64').toString('utf-8');
-            const API_URL = Buffer.from(config.football_api_url, 'base64').toString('utf-8');
+            const API_KEY = Buffer.from(config.x5a, 'base64').toString('utf-8');
+            const API_URL = Buffer.from(config.x5b, 'base64').toString('utf-8');
 
             const response = await axios.get(`${API_URL}/fixtures`, {
                 params: {
