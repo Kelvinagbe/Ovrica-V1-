@@ -1,7 +1,7 @@
 // commands/livescore.js - Live football scores using API-Football (Free)
 
 const axios = require('axios');
-const { getAllEnv } = require('../env'); // Import from env.js
+const { getAllEnv } = require('@/env'); // Import from env.js
 
 module.exports = {
     name: 'livescore',
