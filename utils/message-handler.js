@@ -1,8 +1,8 @@
 // FILE: utils/message-handler.js
-// FIXED: Owner detection in groups + Auto-react for all users
+// FIXED: Owner detection using participant matching in groups
 
 const { addOrUpdateUser } = require('./session-manager');
-const { isAdmin, getUserName } = require('./helpers');
+const { isAdmin, getUserName, getCleanNumber } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
 // Import protection systems
@@ -22,6 +22,41 @@ try {
 }
 
 // ============================================
+// ✅ FIXED: Owner detection that works in groups
+// ============================================
+function isOwnerMessage(msg, sock, CONFIG) {
+    try {
+        // Method 1: Message sent by bot itself
+        if (msg.key.fromMe === true) {
+            return true;
+        }
+
+        // Method 2: Check sender number against owner number
+        const from = msg.key.remoteJid;
+        const isGroup = from && from.endsWith('@g.us');
+        
+        // Get sender JID
+        const sender = isGroup 
+            ? (msg.key.participant || from) 
+            : from;
+
+        if (!sender) return false;
+
+        // Extract clean numbers for comparison
+        const senderNumber = getCleanNumber(sender);
+        const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
+        const botNumber = sock.user?.id ? getCleanNumber(sock.user.id) : null;
+
+        // Check if sender matches owner or bot number
+        return senderNumber === ownerNumber || senderNumber === botNumber;
+
+    } catch (error) {
+        console.error('❌ Owner check error:', error.message);
+        return false;
+    }
+}
+
+// ============================================
 // MAIN MESSAGE HANDLER
 // ============================================
 async function handleMessage(messages, sock, CONFIG, commands) {
@@ -37,7 +72,6 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         // ============================================
         if (from.endsWith('@g.us')) {
             try {
-                // Run protection silently (they'll only log violations)
                 await Promise.all([
                     antilink.handleMessage(sock, msg),
                     antiswear.handleMessage(sock, msg),
@@ -65,23 +99,43 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         if (!sender) return;
 
-        // ✅ FIX: Check if sender is owner (works in groups and DMs)
-        const isOwner = msg.key.fromMe === true || isOwnerNumber(sender, CONFIG);
-        
         const isGroup = from.endsWith('@g.us');
         const userName = getUserName(msg);
-        const admin = isAdmin(sender, CONFIG.admins);
+
+        // ✅ FIX: Use improved owner detection
+        const isOwner = isOwnerMessage(msg, sock, CONFIG);
+        
+        // Owner automatically counts as admin
+        const admin = isOwner ? true : isAdmin(sender, CONFIG.admins);
+
+        // Extract message text
+        const text = extractMessageText(msg);
+        const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
+
+        // 🔍 DEBUG: Log permission info for group commands
+        if (isCommand && isGroup) {
+            const senderNum = getCleanNumber(sender);
+            const ownerNum = getCleanNumber(CONFIG.ownerNumber);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🔍 GROUP COMMAND:');
+            console.log(`├─ From: ${from}`);
+            console.log(`├─ Sender: ${sender}`);
+            console.log(`├─ Sender #: ${senderNum}`);
+            console.log(`├─ Owner #: ${ownerNum}`);
+            console.log(`├─ Match: ${senderNum === ownerNum}`);
+            console.log(`├─ fromMe: ${msg.key.fromMe}`);
+            console.log(`├─ isOwner: ${isOwner}`);
+            console.log(`├─ isAdmin: ${admin}`);
+            console.log(`└─ Command: ${text.split(' ')[0]}`);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━');
+        }
 
         // Save user session (exclude owner)
         if (!isOwner) {
             addOrUpdateUser(from, userName, isGroup);
         }
 
-        // Extract message text
-        const text = extractMessageText(msg);
-        const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
-
-        // Log owner commands only
+        // Log owner commands
         if (isOwner && isCommand) {
             console.log(`👑 Owner: ${text.substring(0, 50)}`);
         }
@@ -141,24 +195,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 }
 
 // ============================================
-// ✅ NEW: Owner number detection helper
-// ============================================
-function isOwnerNumber(jid, CONFIG) {
-    try {
-        if (!jid || !CONFIG.ownerNumber) return false;
-        
-        // Extract clean number from JID
-        const userNumber = jid.split('@')[0].split(':')[0].replace(/\D/g, '');
-        const ownerNumber = CONFIG.ownerNumber.replace(/\D/g, '');
-        
-        return userNumber === ownerNumber;
-    } catch {
-        return false;
-    }
-}
-
-// ============================================
-// AUTO-REACT FUNCTION - Simplified
+// AUTO-REACT FUNCTION
 // ============================================
 async function autoReactToMessage(sock, from, msg, CONFIG) {
     try {
