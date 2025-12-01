@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { loadJSON } = require('./utils/db-loader');
 
-// ✅ Parse admins from .env (comma-separated) and format for WhatsApp
+// ✅ Parse admins from .env (comma-separated) and create BOTH formats
 function parseAdmins() {
     try {
         const adminString = process.env.ADMINS || '';
@@ -10,16 +10,27 @@ function parseAdmins() {
             return [];
         }
 
-        // Split by comma, clean each number, and add @s.whatsapp.net
-        const admins = adminString
+        const admins = [];
+
+        // Split by comma and process each number
+        adminString
             .split(',')
             .map(num => num.trim())
             .filter(num => num.length > 0)
-            .map(num => `${num}@s.whatsapp.net`); // ✅ Add WhatsApp JID format
+            .forEach(num => {
+                // Remove @s.whatsapp.net if it exists to get clean number
+                const cleanNumber = num.replace('@s.whatsapp.net', '');
+                
+                // ✅ Add BOTH formats:
+                admins.push(cleanNumber);                      // Plain number
+                admins.push(`${cleanNumber}@s.whatsapp.net`); // WhatsApp JID format
+            });
 
-        console.log('✅ Loaded admins from .env:', admins);
+        console.log('✅ Loaded admins from .env (both formats):');
+        console.log('   Raw input:', adminString);
+        console.log('   Processed:', admins);
         console.log('   Count:', admins.length);
-        
+
         return admins;
     } catch (error) {
         console.error('❌ Error parsing admins:', error.message);
@@ -70,7 +81,7 @@ const CONFIG = {
     logCommands: settings.logCommands,
     logErrors: settings.logErrors,
 
-    // ✅ Admins from .env (now with @s.whatsapp.net)
+    // ✅ Admins from .env (includes BOTH plain numbers and @s.whatsapp.net format)
     admins: parseAdmins(),
 
     // Static config
