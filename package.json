@@ -90,6 +90,8 @@
 
     "@whiskeysockets/baileys": "^6.7.9",
 
+    "dotenv": "^17.2.3",
+
     "lowdb": "^7.0.1",
 
     "module-alias": "^2.2.3",
