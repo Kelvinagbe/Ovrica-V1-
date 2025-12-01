@@ -48,19 +48,26 @@ function isOwnerMessage(msg, sock, CONFIG) {
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
         const botNumber = sock.user?.id ? getCleanNumber(sock.user.id) : null;
 
-        // Debug output
-        console.log('🔍 Owner Check Debug:');
-        console.log('  Chat:', from);
-        console.log('  Sender:', sender);
-        console.log('  Sender #:', senderNumber);
-        console.log('  Owner #:', ownerNumber);
-        console.log('  Bot #:', botNumber);
+        // Debug output - DETAILED
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔍 OWNER CHECK DEBUG:');
+        console.log('  Chat (from):', from);
+        console.log('  Sender (raw):', sender);
+        console.log('  Sender # (clean):', senderNumber);
+        console.log('  Owner # (clean):', ownerNumber);
+        console.log('  CONFIG.ownerNumber:', CONFIG.ownerNumber);
+        console.log('  Bot # (clean):', botNumber);
+        console.log('  sock.user.id:', sock.user?.id);
         
         const isOwnerMatch = senderNumber === ownerNumber;
         const isBotMatch = senderNumber === botNumber;
         const result = isOwnerMatch || isBotMatch;
         
-        console.log('  Match:', result ? '✅ OWNER' : '❌ NOT OWNER');
+        console.log('  ');
+        console.log('  Sender === Owner?:', isOwnerMatch, `(${senderNumber} === ${ownerNumber})`);
+        console.log('  Sender === Bot?:', isBotMatch, `(${senderNumber} === ${botNumber})`);
+        console.log('  FINAL RESULT:', result ? '✅ IS OWNER' : '❌ NOT OWNER');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         return result;
 
