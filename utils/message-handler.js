@@ -1,5 +1,5 @@
 // FILE: utils/message-handler.js
-// FIXED: Auto-react and console spam issues
+// FIXED: Owner detection in groups + Auto-react for all users
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName } = require('./helpers');
@@ -65,7 +65,9 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         if (!sender) return;
 
-        const isOwner = msg.key.fromMe === true;
+        // ✅ FIX: Check if sender is owner (works in groups and DMs)
+        const isOwner = msg.key.fromMe === true || isOwnerNumber(sender, CONFIG);
+        
         const isGroup = from.endsWith('@g.us');
         const userName = getUserName(msg);
         const admin = isAdmin(sender, CONFIG.admins);
@@ -85,11 +87,11 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         }
 
         // ============================================
-        // FIX 1: AUTO-REACT - Works for ALL users now
+        // AUTO-REACT - Works for ALL users now
         // ============================================
         if (CONFIG.autoReact && !isCommand && !isOwner) {
             const reactChance = CONFIG.reactChance || 0.3;
-            
+
             if (Math.random() < reactChance) {
                 await autoReactToMessage(sock, from, msg, CONFIG);
             }
@@ -139,17 +141,34 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 }
 
 // ============================================
-// FIX 2: AUTO-REACT FUNCTION - Simplified
+// ✅ NEW: Owner number detection helper
+// ============================================
+function isOwnerNumber(jid, CONFIG) {
+    try {
+        if (!jid || !CONFIG.ownerNumber) return false;
+        
+        // Extract clean number from JID
+        const userNumber = jid.split('@')[0].split(':')[0].replace(/\D/g, '');
+        const ownerNumber = CONFIG.ownerNumber.replace(/\D/g, '');
+        
+        return userNumber === ownerNumber;
+    } catch {
+        return false;
+    }
+}
+
+// ============================================
+// AUTO-REACT FUNCTION - Simplified
 // ============================================
 async function autoReactToMessage(sock, from, msg, CONFIG) {
     try {
         const emojis = CONFIG.reactEmojis || ['❤️', '👍', '🔥', '😂', '✨'];
         const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-        
+
         await sock.sendMessage(from, {
             react: { text: emoji, key: msg.key }
         });
-        
+
         // Only log occasionally to reduce spam
         if (Math.random() < 0.1) {
             console.log(`🎭 Reacted with ${emoji}`);
