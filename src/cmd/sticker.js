@@ -116,8 +116,8 @@ module.exports = {
                 'sticker-pack-id': 'com.snowcorp.stickerly.android.stickercontentprovider',
                 'sticker-pack-name': '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                 'sticker-pack-publisher': '𝐊𝐞𝐥𝐯𝐢𝐧',
-                'android-app-store-link': 'https://github.com/yourusername/ovrica',
-                'ios-app-store-link': 'https://github.com/yourusername/ovrica',
+                'android-app-store-link': 'https://github.com/Kelvinagbe/Ovrica-V1-',
+                'ios-app-store-link': 'https://github.com/Kelvinagbe/Ovrica-V1-',
                 'emojis': ['😀']
             };
             
