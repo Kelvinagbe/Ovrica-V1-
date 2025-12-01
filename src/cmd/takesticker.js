@@ -59,13 +59,13 @@ module.exports = {
                 }
             }
 
-            // Send processing message
-            const processingMsg = `⏳ *Taking sticker...*\n\n` +
-                `📦 Pack: ${packName}\n` +
-                `✍️ Author: ${authorName}`;
-            await sendWithTyping(sock, from, { text: processingMsg });
-
             console.log('⬇️ Downloading sticker...');
+            
+            // Send initial processing message: 20% - Downloading
+            const processingMsg = await sock.sendMessage(from, {
+                text: '⏳ *Processing...*\n\n▰▰▱▱▱▱▱▱▱▱ 20%\nDownloading sticker...'
+            });
+            const msgKey = processingMsg.key;
             
             // Download sticker
             const stickerBuffer = await downloadMediaMessage(
@@ -86,6 +86,12 @@ module.exports = {
             if (!stickerBuffer || stickerBuffer.length === 0) {
                 throw new Error('Downloaded sticker is empty');
             }
+
+            // Update: 50% - Converting
+            await sock.sendMessage(from, {
+                text: '⏳ *Processing...*\n\n▰▰▰▰▰▱▱▱▱▱ 50%\nConverting format...',
+                edit: msgKey
+            });
 
             console.log('🔄 Processing sticker...');
             
@@ -119,9 +125,21 @@ module.exports = {
             exif.exif = exifData;
             const finalBuffer = await exif.save(null);
             
+            // Update: 95% - Finalizing
+            await sock.sendMessage(from, {
+                text: '⏳ *Processing...*\n\n▰▰▰▰▰▰▰▰▰▰ 95%\nFinalizing...',
+                edit: msgKey
+            });
+            
             // Send sticker
             await sock.sendMessage(from, {
                 sticker: finalBuffer
+            });
+            
+            // Update: 100% - Complete (keep the message)
+            await sock.sendMessage(from, {
+                text: '✅ *Complete!*\n\n▰▰▰▰▰▰▰▰▰▰ 100%',
+                edit: msgKey
             });
             
             console.log('✅ Sticker taken and sent successfully');
