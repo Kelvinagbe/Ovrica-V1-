@@ -34,37 +34,68 @@ function isOwnerMessage(msg, sock, CONFIG) {
 
         const from = msg.key.remoteJid;
         const isGroup = from && from.endsWith('@g.us');
-        
+
         // Get actual sender (participant in groups, remoteJid in DMs)
-        const sender = isGroup ? msg.key.participant : from;
+        let sender = isGroup ? msg.key.participant : from;
 
         if (!sender) {
             console.log('❌ Owner check: No sender found');
             return false;
         }
 
+        // Normalize common JID variations (MD uses @lid, some libs use other suffixes)
+        // Convert @lid => @s.whatsapp.net, convert plain numbers (if any) to standard JID
+        try {
+            // If sender looks like "1234567890" or "1234567890@s.whatsapp.net" or "123@s.whatsapp.net@extra"
+            // keep the replace simple and safe.
+            sender = String(sender)
+                .replace(/@lid$/, '@s.whatsapp.net')
+                .replace(/@c\.us$/, '@s.whatsapp.net') // if any legacy c.us appears, normalize
+                .trim();
+        } catch (e) {
+            // ignore normalization errors
+        }
+
         // Extract clean phone numbers for comparison
         const senderNumber = getCleanNumber(sender);
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
-        const botNumber = sock.user?.id ? getCleanNumber(sock.user.id) : null;
+        // sock.user.id may be like '1234567890:1@s.whatsapp.net' or '1234567890@s.whatsapp.net'
+        const rawBotId = sock.user?.id || '';
+        const botNumber = getCleanNumber(rawBotId);
 
         // Debug output - DETAILED
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('🔍 OWNER CHECK DEBUG:');
         console.log('  Chat (from):', from);
-        console.log('  Sender (raw):', sender);
+        console.log('  Sender (raw):', isGroup ? msg.key.participant : from);
+        console.log('  Sender (fixed):', sender);
         console.log('  Sender # (clean):', senderNumber);
         console.log('  Owner # (clean):', ownerNumber);
         console.log('  CONFIG.ownerNumber:', CONFIG.ownerNumber);
         console.log('  Bot # (clean):', botNumber);
-        console.log('  sock.user.id:', sock.user?.id);
-        
-        const isOwnerMatch = senderNumber === ownerNumber;
-        const isBotMatch = senderNumber === botNumber;
-        const result = isOwnerMatch || isBotMatch;
-        
+        console.log('  sock.user.id:', rawBotId);
+
+        // Primary exact matches
+        const isOwnerMatch = senderNumber && ownerNumber && (senderNumber === ownerNumber);
+        const isBotMatch = senderNumber && botNumber && (senderNumber === botNumber);
+
+        // Fallback: match by last 7 digits if exact match fails and both numbers look valid
+        let fallbackMatch = false;
+        try {
+            if (!isOwnerMatch && ownerNumber && senderNumber) {
+                const sLast = senderNumber.slice(-7);
+                const oLast = ownerNumber.slice(-7);
+                if (sLast && oLast && sLast === oLast) fallbackMatch = true;
+            }
+        } catch (e) {
+            fallbackMatch = false;
+        }
+
+        const result = isOwnerMatch || isBotMatch || fallbackMatch;
+
         console.log('  ');
         console.log('  Sender === Owner?:', isOwnerMatch, `(${senderNumber} === ${ownerNumber})`);
+        if (fallbackMatch) console.log('  Sender === Owner? (FALLBACK last7):', true);
         console.log('  Sender === Bot?:', isBotMatch, `(${senderNumber} === ${botNumber})`);
         console.log('  FINAL RESULT:', result ? '✅ IS OWNER' : '❌ NOT OWNER');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -241,12 +272,12 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
 
     try {
         const botNumber = sock.user?.id?.split(':')[0];
-        const botJid = `${botNumber}@s.whatsapp.net`;
+        const botJid = botNumber ? `${botNumber}@s.whatsapp.net` : null;
 
         // Check mentions
         const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         const isMentioned = mentionedJids.some(jid => 
-            jid === botJid || jid.includes(botNumber)
+            jid === botJid || (botNumber && jid.includes(botNumber))
         );
 
         if (isMentioned) {
@@ -260,7 +291,7 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
             const quotedParticipant = contextInfo.participant;
             const isFromMe = contextInfo.fromMe;
 
-            if (isFromMe === true || quotedParticipant === botJid || quotedParticipant?.includes(botNumber)) {
+            if (isFromMe === true || quotedParticipant === botJid || (botNumber && quotedParticipant?.includes(botNumber))) {
                 console.log('🤖 AI: Reply to bot message');
                 return true;
             }
