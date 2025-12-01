@@ -1,5 +1,5 @@
 // FILE: utils/message-handler.js
-// FIXED: Owner detection using participant matching in groups
+// COMPLETE REWRITE - Fixed owner detection for groups and DMs
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName, getCleanNumber } = require('./helpers');
@@ -22,33 +22,47 @@ try {
 }
 
 // ============================================
-// ✅ FIXED: Owner detection that works in groups
+// ✅ OWNER DETECTION - Works in groups and DMs
 // ============================================
 function isOwnerMessage(msg, sock, CONFIG) {
     try {
         // Method 1: Message sent by bot itself
         if (msg.key.fromMe === true) {
+            console.log('✅ Owner: Message fromMe=true');
             return true;
         }
 
-        // Method 2: Check sender number against owner number
         const from = msg.key.remoteJid;
         const isGroup = from && from.endsWith('@g.us');
         
-        // Get sender JID
-        const sender = isGroup 
-            ? (msg.key.participant || from) 
-            : from;
+        // Get actual sender (participant in groups, remoteJid in DMs)
+        const sender = isGroup ? msg.key.participant : from;
 
-        if (!sender) return false;
+        if (!sender) {
+            console.log('❌ Owner check: No sender found');
+            return false;
+        }
 
-        // Extract clean numbers for comparison
+        // Extract clean phone numbers for comparison
         const senderNumber = getCleanNumber(sender);
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
         const botNumber = sock.user?.id ? getCleanNumber(sock.user.id) : null;
 
-        // Check if sender matches owner or bot number
-        return senderNumber === ownerNumber || senderNumber === botNumber;
+        // Debug output
+        console.log('🔍 Owner Check Debug:');
+        console.log('  Chat:', from);
+        console.log('  Sender:', sender);
+        console.log('  Sender #:', senderNumber);
+        console.log('  Owner #:', ownerNumber);
+        console.log('  Bot #:', botNumber);
+        
+        const isOwnerMatch = senderNumber === ownerNumber;
+        const isBotMatch = senderNumber === botNumber;
+        const result = isOwnerMatch || isBotMatch;
+        
+        console.log('  Match:', result ? '✅ OWNER' : '❌ NOT OWNER');
+
+        return result;
 
     } catch (error) {
         console.error('❌ Owner check error:', error.message);
@@ -68,7 +82,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (!from) return;
 
         // ============================================
-        // PROTECTION SYSTEMS (Groups Only) - Silent mode
+        // PROTECTION SYSTEMS (Groups Only)
         // ============================================
         if (from.endsWith('@g.us')) {
             try {
@@ -102,32 +116,29 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         const isGroup = from.endsWith('@g.us');
         const userName = getUserName(msg);
 
-        // ✅ FIX: Use improved owner detection
+        // ✅ CRITICAL: Check owner status FIRST
         const isOwner = isOwnerMessage(msg, sock, CONFIG);
         
-        // Owner automatically counts as admin
-        const admin = isOwner ? true : isAdmin(sender, CONFIG.admins);
+        // ✅ CRITICAL: Check admin status (owner is auto-admin)
+        const isAdminUser = isOwner ? true : isAdmin(sender, CONFIG.admins);
 
         // Extract message text
         const text = extractMessageText(msg);
         const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
 
-        // 🔍 DEBUG: Log permission info for group commands
-        if (isCommand && isGroup) {
-            const senderNum = getCleanNumber(sender);
-            const ownerNum = getCleanNumber(CONFIG.ownerNumber);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('🔍 GROUP COMMAND:');
+        // ============================================
+        // DEBUG: Log all command attempts
+        // ============================================
+        if (isCommand) {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('⚡ COMMAND ATTEMPT:');
+            console.log(`├─ User: ${userName}`);
             console.log(`├─ From: ${from}`);
             console.log(`├─ Sender: ${sender}`);
-            console.log(`├─ Sender #: ${senderNum}`);
-            console.log(`├─ Owner #: ${ownerNum}`);
-            console.log(`├─ Match: ${senderNum === ownerNum}`);
-            console.log(`├─ fromMe: ${msg.key.fromMe}`);
-            console.log(`├─ isOwner: ${isOwner}`);
-            console.log(`├─ isAdmin: ${admin}`);
-            console.log(`└─ Command: ${text.split(' ')[0]}`);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━');
+            console.log(`├─ Is Owner: ${isOwner ? '✅ YES' : '❌ NO'}`);
+            console.log(`├─ Is Admin: ${isAdminUser ? '✅ YES' : '❌ NO'}`);
+            console.log(`├─ Command: ${text.split(' ')[0]}`);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         }
 
         // Save user session (exclude owner)
@@ -135,33 +146,27 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             addOrUpdateUser(from, userName, isGroup);
         }
 
-        // Log owner commands
-        if (isOwner && isCommand) {
-            console.log(`👑 Owner: ${text.substring(0, 50)}`);
-        }
-
         // ============================================
-        // AUTO-REACT - Works for ALL users now
+        // AUTO-REACT
         // ============================================
         if (CONFIG.autoReact && !isCommand && !isOwner) {
             const reactChance = CONFIG.reactChance || 0.3;
-
             if (Math.random() < reactChance) {
                 await autoReactToMessage(sock, from, msg, CONFIG);
             }
         }
 
-        // Owner non-commands are ignored
+        // Ignore owner's non-command messages
         if (isOwner && !isCommand) return;
 
         // Private mode enforcement
-        if (CONFIG.botMode === 'private' && !admin && !isOwner && isCommand) {
-            console.log(`🔒 Blocked: ${userName}`);
+        if (CONFIG.botMode === 'private' && !isAdminUser && !isOwner && isCommand) {
+            console.log(`🔒 Private mode: Blocked ${userName}`);
             return;
         }
 
         // Welcome new users
-        if (shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner)) {
+        if (shouldSendWelcome(CONFIG, isAdminUser, isGroup, from, isOwner)) {
             welcomedUsers.add(from);
         }
 
@@ -176,20 +181,22 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             const shouldRespondWithAI = checkIfShouldRespondWithAI(msg, from, isGroup, sock);
 
             if (shouldRespondWithAI) {
-                console.log('✅ AI responding');
+                console.log('🤖 AI responding to message');
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
                 if (aiHandled) return;
             }
         }
 
-        // Execute command
+        // ============================================
+        // EXECUTE COMMAND
+        // ============================================
         if (isCommand && text) {
-            await executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands);
+            await executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFIG, commands);
         }
 
     } catch (error) {
         if (CONFIG.logErrors) {
-            console.error('❌ Handler error:', error.message);
+            console.error('❌ Message handler error:', error.message);
         }
     }
 }
@@ -208,7 +215,7 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
 
         // Only log occasionally to reduce spam
         if (Math.random() < 0.1) {
-            console.log(`🎭 Reacted with ${emoji}`);
+            console.log(`🎭 Auto-reacted with ${emoji}`);
         }
     } catch (error) {
         // Silently fail - reactions are non-critical
@@ -219,8 +226,9 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
 // AI TRIGGER DETECTION
 // ============================================
 function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
+    // Always respond in DMs
     if (!isGroup) {
-        console.log('🤖 AI: DM');
+        console.log('🤖 AI: Direct message');
         return true;
     }
 
@@ -235,7 +243,7 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
         );
 
         if (isMentioned) {
-            console.log('🤖 AI: Mentioned');
+            console.log('🤖 AI: Bot mentioned');
             return true;
         }
 
@@ -246,7 +254,7 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
             const isFromMe = contextInfo.fromMe;
 
             if (isFromMe === true || quotedParticipant === botJid || quotedParticipant?.includes(botNumber)) {
-                console.log('🤖 AI: Reply to bot');
+                console.log('🤖 AI: Reply to bot message');
                 return true;
             }
         }
@@ -254,7 +262,7 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
         // Check text for bot tag
         const messageText = extractMessageText(msg);
         if (messageText && botNumber && messageText.includes(`@${botNumber}`)) {
-            console.log('🤖 AI: Tagged in text');
+            console.log('🤖 AI: Bot tagged in text');
             return true;
         }
 
@@ -299,8 +307,10 @@ async function handleStatusView(sock, msg, CONFIG) {
         if (msg.key.participant) {
             statusViewed.add(msg.key.participant);
         }
-        console.log('✅ Status viewed');
-    } catch {}
+        console.log('✅ Status viewed and reacted');
+    } catch (error) {
+        // Silently fail
+    }
 }
 
 async function handleTxt2ImgSession(sock, from, msg, text, userName) {
@@ -310,14 +320,16 @@ async function handleTxt2ImgSession(sock, from, msg, text, userName) {
 
         const session = txt2img.userSessions.get(from);
         if (session && /^[1-5]$/.test(text.trim())) {
-            console.log(`🎨 txt2img style ${text.trim()}`);
+            console.log(`🎨 txt2img style selection: ${text.trim()}`);
             txt2img.userSessions.delete(from);
             if (txt2img.generateImage) {
                 await txt2img.generateImage(sock, from, msg, session.prompt, text.trim());
             }
             return true;
         }
-    } catch {}
+    } catch (error) {
+        // Silently fail
+    }
     return false;
 }
 
@@ -338,14 +350,17 @@ async function handleSongSelection(sock, from, msg, text, commands) {
     }
 }
 
-function shouldSendWelcome(CONFIG, admin, isGroup, from, isOwner) {
-    return (CONFIG.botMode === 'public' || admin) && 
+function shouldSendWelcome(CONFIG, isAdminUser, isGroup, from, isOwner) {
+    return (CONFIG.botMode === 'public' || isAdminUser) && 
            !isGroup && 
            !welcomedUsers.has(from) && 
            !isOwner;
 }
 
-async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, commands) {
+// ============================================
+// COMMAND EXECUTION
+// ============================================
+async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFIG, commands) {
     try {
         const parts = text.trim().split(/\s+/);
         const command = parts[0].toLowerCase().replace(/^[!/]/, '');
@@ -353,11 +368,16 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
 
         if (!commands[command]) return;
 
-        // OWNER CHECK
-        if (commands[command].owner && !isOwner) {
+        const cmd = commands[command];
+
+        // ============================================
+        // OWNER-ONLY COMMAND CHECK
+        // ============================================
+        if (cmd.owner && !isOwner) {
+            console.log(`🚫 Owner command blocked: /${command} by ${getUserName(msg)}`);
             await sock.sendMessage(from, {
                 text: `┌ ❏ *⌜ OWNER ONLY ⌟* ❏\n│\n` +
-                    `├◆ 👑 Restricted to bot owner\n` +
+                    `├◆ 👑 This command is restricted to the bot owner\n` +
                     `├◆ 🔒 Command: /${command}\n` +
                     `├◆ ⛔ Access denied\n│\n` +
                     `└ ❏\n> 🎭${CONFIG.botName}🎭`
@@ -365,12 +385,15 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
             return;
         }
 
-        // ADMIN CHECK
-        if (commands[command].admin && !admin && !isOwner) {
+        // ============================================
+        // ADMIN-ONLY COMMAND CHECK
+        // ============================================
+        if (cmd.admin && !isAdminUser && !isOwner) {
+            console.log(`🚫 Admin command blocked: /${command} by ${getUserName(msg)}`);
             if (CONFIG.botMode === 'public') {
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ ACCESS DENIED ⌟* ❏\n│\n` +
-                        `├◆ ⛔ Admin only\n` +
+                        `├◆ ⛔ This command requires admin privileges\n` +
                         `├◆ 🔒 Command: /${command}\n│\n` +
                         `└ ❏\n> 🎭${CONFIG.botName}🎭`
                 }, { quoted: msg }).catch(() => {});
@@ -378,22 +401,24 @@ async function executeCommand(sock, from, text, msg, admin, isOwner, CONFIG, com
             return;
         }
 
-        // EXECUTE
+        // ============================================
+        // EXECUTE COMMAND
+        // ============================================
         if (CONFIG.logCommands) {
-            const type = isOwner ? '(Owner)' : (admin ? '(Admin)' : '(User)');
-            console.log(`⚡ /${command} ${type}`);
+            const userType = isOwner ? '👑 OWNER' : (isAdminUser ? '⭐ ADMIN' : '👤 USER');
+            console.log(`⚡ /${command} executed by ${userType}`);
         }
 
-        await commands[command].exec(sock, from, args, msg, admin || isOwner);
+        await cmd.exec(sock, from, args, msg, isAdminUser || isOwner);
 
     } catch (error) {
-        console.error(`❌ Command error [${command}]:`, error.message);
+        console.error(`❌ Command execution error [/${command}]:`, error.message);
 
         await sock.sendMessage(from, {
-            text: `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
-                `├◆ ❌ Command failed\n` +
+            text: `┌ ❏ *⌜ COMMAND ERROR ⌟* ❏\n│\n` +
+                `├◆ ❌ Command failed to execute\n` +
                 `├◆ 🔧 Command: /${command}\n` +
-                `├◆ 💥 ${error.message}\n│\n` +
+                `├◆ 💥 Error: ${error.message}\n│\n` +
                 `└ ❏\n> 🎭${CONFIG.botName}🎭`
         }, { quoted: msg }).catch(() => {});
     }
