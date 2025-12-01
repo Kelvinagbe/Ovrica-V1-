@@ -50,7 +50,7 @@ module.exports = {
 
         // Update runtime config
 
-        delete require.cache[require.resolve('../config')];
+        delete require.cache[require.resolve('@/config')];
 
         const CONFIG = require('@/config');
 
