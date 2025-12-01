@@ -1,7 +1,32 @@
+require('dotenv').config();
 const { loadJSON } = require('./utils/db-loader');
 
+// ✅ Parse admins from .env (comma-separated)
+function parseAdmins() {
+    try {
+        const adminString = process.env.ADMINS || '';
+        if (!adminString.trim()) {
+            console.log('⚠️  No admins found in .env - add ADMINS=2348109860102');
+            return [];
+        }
+
+        // Split by comma and clean each number
+        const admins = adminString
+            .split(',')
+            .map(num => num.trim())
+            .filter(num => num.length > 0);
+
+        console.log('✅ Loaded admins from .env:', admins);
+        console.log('   Count:', admins.length);
+        
+        return admins;
+    } catch (error) {
+        console.error('❌ Error parsing admins:', error.message);
+        return [];
+    }
+}
+
 // Load data from JSON files
-const admins = loadJSON('admin.json', { admins: [] });
 const settings = loadJSON('settings.json', {
     botMode: 'public',
     autoTyping: true,
@@ -13,6 +38,7 @@ const settings = loadJSON('settings.json', {
     logCommands: false,
     logErrors: true
 });
+
 const botInfo = loadJSON('botinfo.json', {
     botName: 'OVRICA-V1',
     version: '1.0.0',
@@ -31,7 +57,7 @@ const CONFIG = {
     newsletterName: botInfo.newsletterName,
     channelUrl: botInfo.channelUrl,
     thumbnailUrl: botInfo.thumbnailUrl,
-    
+
     // From settings.json
     botMode: settings.botMode,
     autoTyping: settings.autoTyping,
@@ -42,11 +68,11 @@ const CONFIG = {
     logMessages: settings.logMessages,
     logCommands: settings.logCommands,
     logErrors: settings.logErrors,
-    
-    // From admin.json
-    admins: admins.admins,
-    
-    // Static config (doesn't change)
+
+    // ✅ Admins from .env
+    admins: parseAdmins(),
+
+    // Static config
     prefix: '/',
     platform: 'LINUX',
     timezone: 'Africa/Lagos',
@@ -56,5 +82,11 @@ const CONFIG = {
     mood: '🌙',
     reactEmojis: ['❤️', '👍', '🔥', '😂', '😮', '👏', '✨', '🎉']
 };
+
+// ✅ Validate configuration
+if (CONFIG.admins.length === 0) {
+    console.log('⚠️  WARNING: No admins configured!');
+    console.log('   Add to .env: ADMINS=2348109860102,1234567890');
+}
 
 module.exports = CONFIG;
