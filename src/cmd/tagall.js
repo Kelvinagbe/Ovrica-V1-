@@ -1,6 +1,6 @@
 // commands/tagall.js
 
-const { templates } = require('../templates');
+const { templates } = require('../tmp/templates');
 
 module.exports = {
 
