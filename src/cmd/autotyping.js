@@ -52,7 +52,7 @@ module.exports = {
 
         delete require.cache[require.resolve('../config')];
 
-        const CONFIG = require('../config');
+        const CONFIG = require('@/config');
 
         CONFIG.autoTyping = status;
 
@@ -76,7 +76,7 @@ module.exports = {
 
         
 
-        const text = require('../templates').design.buildSimple('SETTING UPDATED', sections);
+        const text = require('../HTML/templates').design.buildSimple('SETTING UPDATED', sections);
 
         await sendWithTyping(sock, from, { text });
 
