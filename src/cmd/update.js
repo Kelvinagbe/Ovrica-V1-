@@ -8,11 +8,28 @@ module.exports = {
     name: 'update',
     admin: true, // Only admins can update
     description: 'Update bot from Git repository',
-    
+
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
+            // Check if command is used in a group
+            if (from.endsWith('@g.us')) {
+                return await sock.sendMessage(from, {
+                    text: `┌ ❏ *⌜ NOT ALLOWED ⌟* ❏\n` +
+                        `│\n` +
+                        `├◆ ⚠️ *This function is not allowed in groups*\n` +
+                        `├◆ 🔒 *Security restriction*\n` +
+                        `│\n` +
+                        `├◆ 💡 *Please use in:*\n` +
+                        `├◆ • Private chat with bot\n` +
+                        `├◆ • Direct message only\n` +
+                        `│\n` +
+                        `└ ❏\n` +
+                        `> Powered by 🎭Kelvin🎭`
+                }, { quoted: msg });
+            }
+
             const action = args[0]?.toLowerCase();
-            
+
             // Show help menu
             if (!action || !['check', 'now', 'force', 'status'].includes(action)) {
                 return await sock.sendMessage(from, {
@@ -78,7 +95,7 @@ module.exports = {
                     }
                 }, { quoted: msg });
             }
-            
+
             // Check for updates
             if (action === 'check') {
                 const checkMsg = await sock.sendMessage(from, {
@@ -89,28 +106,28 @@ module.exports = {
                         `│\n` +
                         `└ ❏`
                 }, { quoted: msg });
-                
+
                 try {
                     // Fetch latest changes (SAFE - only checks, doesn't change anything)
                     await execPromise('git fetch origin');
-                    
+
                     // Get current branch
                     const { stdout: branchOut } = await execPromise('git rev-parse --abbrev-ref HEAD');
                     const branch = branchOut.trim();
-                    
+
                     // Check if updates available
                     const { stdout: statusOut } = await execPromise(`git rev-list HEAD...origin/${branch} --count`);
                     const updatesCount = parseInt(statusOut.trim());
-                    
+
                     // Get current commit
                     const { stdout: currentCommit } = await execPromise('git rev-parse --short HEAD');
                     const { stdout: latestCommit } = await execPromise(`git rev-parse --short origin/${branch}`);
-                    
+
                     if (updatesCount > 0) {
                         // Get commit messages
                         const { stdout: commits } = await execPromise(`git log HEAD..origin/${branch} --oneline --no-decorate -5`);
                         const commitList = commits.trim().split('\n').map(c => `├◆ • ${c}`).join('\n');
-                        
+
                         await sock.sendMessage(from, {
                             text: `┌ ❏ *⌜ UPDATES AVAILABLE ⌟* ❏\n` +
                                 `│\n` +
@@ -148,7 +165,7 @@ module.exports = {
                             edit: checkMsg.key
                         });
                     }
-                    
+
                 } catch (error) {
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
@@ -167,7 +184,7 @@ module.exports = {
                     });
                 }
             }
-            
+
             // Update now (SAFE - only pulls tracked files)
             else if (action === 'now') {
                 const updateMsg = await sock.sendMessage(from, {
@@ -179,11 +196,11 @@ module.exports = {
                         `│\n` +
                         `└ ❏`
                 }, { quoted: msg });
-                
+
                 try {
                     // Pull changes (SAFE - respects .gitignore)
                     const { stdout: pullOut } = await execPromise('git pull origin');
-                    
+
                     if (pullOut.includes('Already up to date')) {
                         await sock.sendMessage(from, {
                             text: `┌ ❏ *⌜ NO UPDATES ⌟* ❏\n` +
@@ -227,17 +244,17 @@ module.exports = {
                                 `> Powered by 🎭Kelvin🎭`,
                             edit: updateMsg.key
                         });
-                        
+
                         // Log what's happening
                         console.log('🔄 Update successful, restarting bot...');
                         console.log('✅ User files (auth_info, config) are safe');
-                        
+
                         // Restart bot (PM2 will auto-restart)
                         setTimeout(() => {
                             process.exit(0);
                         }, 2000);
                     }
-                    
+
                 } catch (error) {
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ UPDATE FAILED ⌟* ❏\n` +
@@ -256,7 +273,7 @@ module.exports = {
                     });
                 }
             }
-            
+
             // Force update (RISKY - use only if necessary)
             else if (action === 'force') {
                 const forceMsg = await sock.sendMessage(from, {
@@ -269,19 +286,19 @@ module.exports = {
                         `│\n` +
                         `└ ❏`
                 }, { quoted: msg });
-                
+
                 try {
                     // Get current branch
                     const { stdout: branchOut } = await execPromise('git rev-parse --abbrev-ref HEAD');
                     const branch = branchOut.trim();
-                    
+
                     // Force reset (only affects tracked files, NOT .gitignore files)
                     await execPromise('git fetch origin');
                     await execPromise(`git reset --hard origin/${branch}`);
-                    
+
                     // Clean only tracked files (SAFE - respects .gitignore)
                     await execPromise('git clean -fd');
-                    
+
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ FORCE UPDATE SUCCESS ⌟* ❏\n` +
                             `│\n` +
@@ -295,15 +312,15 @@ module.exports = {
                             `> Powered by 🎭Kelvin🎭`,
                         edit: forceMsg.key
                     });
-                    
+
                     console.log('🔄 Force update successful, restarting...');
                     console.log('✅ Files in .gitignore are preserved');
-                    
+
                     // Restart bot
                     setTimeout(() => {
                         process.exit(0);
                     }, 2000);
-                    
+
                 } catch (error) {
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ FORCE UPDATE FAILED ⌟* ❏\n` +
@@ -317,7 +334,7 @@ module.exports = {
                     });
                 }
             }
-            
+
             // Show git status
             else if (action === 'status') {
                 try {
@@ -325,12 +342,12 @@ module.exports = {
                     const { stdout: commitOut } = await execPromise('git rev-parse --short HEAD');
                     const { stdout: remoteOut } = await execPromise('git config --get remote.origin.url');
                     const { stdout: statusOut } = await execPromise('git status --short');
-                    
+
                     const branch = branchOut.trim();
                     const commit = commitOut.trim();
                     const remote = remoteOut.trim();
                     const hasChanges = statusOut.trim().length > 0;
-                    
+
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ GIT STATUS ⌟* ❏\n` +
                             `│\n` +
@@ -343,7 +360,7 @@ module.exports = {
                             `└ ❏\n` +
                             `> Powered by 🎭Kelvin🎭`
                     }, { quoted: msg });
-                    
+
                 } catch (error) {
                     await sock.sendMessage(from, {
                         text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
@@ -356,7 +373,7 @@ module.exports = {
                     }, { quoted: msg });
                 }
             }
-            
+
         } catch (error) {
             console.error('❌ Update command error:', error);
             await sock.sendMessage(from, {
