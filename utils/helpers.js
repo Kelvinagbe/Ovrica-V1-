@@ -58,13 +58,20 @@ function getCleanNumber(jid) {
         // Convert to string in case it's a number
         const jidStr = String(jid);
         
-        // Split by @ to remove domain (@s.whatsapp.net, @g.us)
-        // Split by : to remove device ID (:12, :0)
+        // Handle different JID formats:
+        // - 2348109860102@s.whatsapp.net (normal)
+        // - 2348109860102:12@s.whatsapp.net (multi-device)
+        // - 267607148122138@lid (linked device ID)
+        // - 2348109860102@g.us (group - not a user)
+        // - 2348109860102 (plain number)
+        
+        // Split by @ to remove domain
+        // Split by : to remove device ID
         // Remove all non-digits
         const cleaned = jidStr
-            .split('@')[0]     // Remove @s.whatsapp.net
+            .split('@')[0]     // Remove @s.whatsapp.net, @lid, @g.us
             .split(':')[0]     // Remove :12 device ID
-            .replace(/\D/g, ''); // Remove all non-digits
+            .replace(/\D/g, ''); // Remove all non-digits (letters, symbols)
         
         return cleaned || null;
         
