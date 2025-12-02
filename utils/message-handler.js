@@ -1,8 +1,8 @@
 // FILE: utils/message-handler.js
-// COMPLETE REWRITE - Fixed owner detection for groups and DMs
+// COMPLETE REWRITE - Fixed owner detection for groups and DMs with @lid support
 
 const { addOrUpdateUser } = require('./session-manager');
-const { isAdmin, getUserName, getCleanNumber } = require('./helpers');
+const { isAdmin, getUserName, getCleanNumber, normalizeJid, getSender } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
 // Import protection systems
@@ -35,75 +35,121 @@ function isOwnerMessage(msg, sock, CONFIG) {
         const from = msg.key.remoteJid;
         const isGroup = from && from.endsWith('@g.us');
 
-        // Get actual sender (participant in groups, remoteJid in DMs)
-        let sender = isGroup ? msg.key.participant : from;
+        // ============================================
+        // 🔥 CRITICAL FIX: Handle @lid in groups
+        // ============================================
+        let sender;
+        
+        if (isGroup) {
+            // Priority 1: participantPn (real phone number, handles @lid)
+            // Priority 2: participant (may be @lid format)
+            sender = msg.key.participantPn || msg.key.participant;
+
+            // If still @lid, try contextInfo for real JID
+            if (sender && sender.endsWith('@lid')) {
+                const contextParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
+                if (contextParticipant && !contextParticipant.endsWith('@lid')) {
+                    sender = contextParticipant;
+                    console.log('🔄 Using contextInfo participant:', sender);
+                } else {
+                    // Last resort: normalize @lid to standard JID
+                    sender = normalizeJid(sender);
+                    console.log('🔄 Normalized @lid to:', sender);
+                }
+            }
+        } else {
+            // DMs: use remoteJid directly
+            sender = from;
+        }
 
         if (!sender) {
             console.log('❌ Owner check: No sender found');
             return false;
         }
 
-        // Normalize common JID variations (MD uses @lid, some libs use other suffixes)
-        // Convert @lid => @s.whatsapp.net, convert plain numbers (if any) to standard JID
-        try {
-            // If sender looks like "1234567890" or "1234567890@s.whatsapp.net" or "123@s.whatsapp.net@extra"
-            // keep the replace simple and safe.
-            sender = String(sender)
-                .replace(/@lid$/, '@s.whatsapp.net')
-                .replace(/@c\.us$/, '@s.whatsapp.net') // if any legacy c.us appears, normalize
-                .trim();
-        } catch (e) {
-            // ignore normalization errors
-        }
+        // Normalize sender to standard JID format
+        sender = normalizeJid(sender);
 
         // Extract clean phone numbers for comparison
         const senderNumber = getCleanNumber(sender);
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
-        // sock.user.id may be like '1234567890:1@s.whatsapp.net' or '1234567890@s.whatsapp.net'
+        
+        // Get bot number from sock.user.id
+        // Format: "1234567890:1@s.whatsapp.net" or "1234567890@s.whatsapp.net"
         const rawBotId = sock.user?.id || '';
         const botNumber = getCleanNumber(rawBotId);
 
-        // Debug output - DETAILED
+        // ============================================
+        // 🔍 DETAILED DEBUG OUTPUT
+        // ============================================
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('🔍 OWNER CHECK DEBUG:');
+        console.log('  Chat Type:', isGroup ? 'GROUP' : 'DM');
         console.log('  Chat (from):', from);
-        console.log('  Sender (raw):', isGroup ? msg.key.participant : from);
-        console.log('  Sender (fixed):', sender);
-        console.log('  Sender # (clean):', senderNumber);
-        console.log('  Owner # (clean):', ownerNumber);
-        console.log('  CONFIG.ownerNumber:', CONFIG.ownerNumber);
-        console.log('  Bot # (clean):', botNumber);
-        console.log('  sock.user.id:', rawBotId);
+        console.log('  ');
+        console.log('  Raw Values:');
+        console.log('    msg.key.participant:', msg.key.participant || 'N/A');
+        console.log('    msg.key.participantPn:', msg.key.participantPn || 'N/A');
+        console.log('  ');
+        console.log('  Processed Values:');
+        console.log('    Sender (final):', sender);
+        console.log('    Sender # (clean):', senderNumber);
+        console.log('  ');
+        console.log('  Comparison Targets:');
+        console.log('    Owner # (clean):', ownerNumber);
+        console.log('    Owner (CONFIG):', CONFIG.ownerNumber);
+        console.log('    Bot # (clean):', botNumber);
+        console.log('    Bot (sock.user.id):', rawBotId);
 
-        // Primary exact matches
-        const isOwnerMatch = senderNumber && ownerNumber && (senderNumber === ownerNumber);
-        const isBotMatch = senderNumber && botNumber && (senderNumber === botNumber);
+        // ============================================
+        // MATCHING LOGIC
+        // ============================================
+        
+        // Primary: Exact match
+        const isOwnerExact = senderNumber && ownerNumber && (senderNumber === ownerNumber);
+        const isBotExact = senderNumber && botNumber && (senderNumber === botNumber);
 
-        // Fallback: match by last 7 digits if exact match fails and both numbers look valid
-        let fallbackMatch = false;
-        try {
-            if (!isOwnerMatch && ownerNumber && senderNumber) {
-                const sLast = senderNumber.slice(-7);
-                const oLast = ownerNumber.slice(-7);
-                if (sLast && oLast && sLast === oLast) fallbackMatch = true;
-            }
-        } catch (e) {
-            fallbackMatch = false;
+        // Fallback: Last 10 digits match (handles country code variations)
+        let isOwnerFallback = false;
+        let isBotFallback = false;
+
+        if (!isOwnerExact && senderNumber && ownerNumber && 
+            senderNumber.length >= 10 && ownerNumber.length >= 10) {
+            const senderLast10 = senderNumber.slice(-10);
+            const ownerLast10 = ownerNumber.slice(-10);
+            isOwnerFallback = senderLast10 === ownerLast10;
         }
 
-        const result = isOwnerMatch || isBotMatch || fallbackMatch;
+        if (!isBotExact && senderNumber && botNumber && 
+            senderNumber.length >= 10 && botNumber.length >= 10) {
+            const senderLast10 = senderNumber.slice(-10);
+            const botLast10 = botNumber.slice(-10);
+            isBotFallback = senderLast10 === botLast10;
+        }
+
+        const isOwnerMatch = isOwnerExact || isOwnerFallback;
+        const isBotMatch = isBotExact || isBotFallback;
+        const result = isOwnerMatch || isBotMatch;
 
         console.log('  ');
-        console.log('  Sender === Owner?:', isOwnerMatch, `(${senderNumber} === ${ownerNumber})`);
-        if (fallbackMatch) console.log('  Sender === Owner? (FALLBACK last7):', true);
-        console.log('  Sender === Bot?:', isBotMatch, `(${senderNumber} === ${botNumber})`);
-        console.log('  FINAL RESULT:', result ? '✅ IS OWNER' : '❌ NOT OWNER');
+        console.log('  Match Results:');
+        console.log('    Sender === Owner (exact)?:', isOwnerExact);
+        if (isOwnerFallback) {
+            console.log('    Sender === Owner (fallback)?:', true, '[last 10 digits]');
+        }
+        console.log('    Sender === Bot (exact)?:', isBotExact);
+        if (isBotFallback) {
+            console.log('    Sender === Bot (fallback)?:', true, '[last 10 digits]');
+        }
+        console.log('  ');
+        console.log('  🎯 FINAL RESULT:', result ? '✅ IS OWNER' : '❌ NOT OWNER');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         return result;
 
     } catch (error) {
         console.error('❌ Owner check error:', error.message);
+        console.error('   Stack:', error.stack);
         return false;
     }
 }
@@ -144,11 +190,8 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
-        // Extract sender info
-        const sender = from.endsWith('@g.us') 
-            ? (msg.key.participant || from) 
-            : from;
-
+        // Extract sender info using helper function
+        const sender = getSender(msg);
         if (!sender) return;
 
         const isGroup = from.endsWith('@g.us');
@@ -156,7 +199,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         // ✅ CRITICAL: Check owner status FIRST
         const isOwner = isOwnerMessage(msg, sock, CONFIG);
-        
+
         // ✅ CRITICAL: Check admin status (owner is auto-admin)
         const isAdminUser = isOwner ? true : isAdmin(sender, CONFIG.admins);
 
@@ -168,14 +211,16 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         // DEBUG: Log all command attempts
         // ============================================
         if (isCommand) {
+            const commandName = text.split(' ')[0];
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('⚡ COMMAND ATTEMPT:');
             console.log(`├─ User: ${userName}`);
+            console.log(`├─ Chat: ${isGroup ? 'GROUP' : 'DM'}`);
             console.log(`├─ From: ${from}`);
             console.log(`├─ Sender: ${sender}`);
             console.log(`├─ Is Owner: ${isOwner ? '✅ YES' : '❌ NO'}`);
             console.log(`├─ Is Admin: ${isAdminUser ? '✅ YES' : '❌ NO'}`);
-            console.log(`├─ Command: ${text.split(' ')[0]}`);
+            console.log(`├─ Command: ${commandName}`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         }
 
@@ -235,6 +280,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
     } catch (error) {
         if (CONFIG.logErrors) {
             console.error('❌ Message handler error:', error.message);
+            console.error('   Stack:', error.stack);
         }
     }
 }
@@ -276,9 +322,10 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
 
         // Check mentions
         const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        const isMentioned = mentionedJids.some(jid => 
-            jid === botJid || (botNumber && jid.includes(botNumber))
-        );
+        const isMentioned = mentionedJids.some(jid => {
+            const mentionNumber = getCleanNumber(jid);
+            return mentionNumber && botNumber && mentionNumber === botNumber;
+        });
 
         if (isMentioned) {
             console.log('🤖 AI: Bot mentioned');
@@ -291,9 +338,17 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
             const quotedParticipant = contextInfo.participant;
             const isFromMe = contextInfo.fromMe;
 
-            if (isFromMe === true || quotedParticipant === botJid || (botNumber && quotedParticipant?.includes(botNumber))) {
-                console.log('🤖 AI: Reply to bot message');
+            if (isFromMe === true) {
+                console.log('🤖 AI: Reply to bot message (fromMe)');
                 return true;
+            }
+
+            if (quotedParticipant) {
+                const quotedNumber = getCleanNumber(quotedParticipant);
+                if (quotedNumber && botNumber && quotedNumber === botNumber) {
+                    console.log('🤖 AI: Reply to bot message (participant)');
+                    return true;
+                }
             }
         }
 
@@ -399,12 +454,15 @@ function shouldSendWelcome(CONFIG, isAdminUser, isGroup, from, isOwner) {
 // COMMAND EXECUTION
 // ============================================
 async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFIG, commands) {
-    try {
-        const parts = text.trim().split(/\s+/);
-        const command = parts[0].toLowerCase().replace(/^[!/]/, '');
-        const args = parts.slice(1);
+    const parts = text.trim().split(/\s+/);
+    const command = parts[0].toLowerCase().replace(/^[!/]/, '');
+    const args = parts.slice(1);
 
-        if (!commands[command]) return;
+    try {
+        if (!commands[command]) {
+            console.log(`⚠️  Unknown command: /${command}`);
+            return;
+        }
 
         const cmd = commands[command];
 
@@ -444,13 +502,14 @@ async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFI
         // ============================================
         if (CONFIG.logCommands) {
             const userType = isOwner ? '👑 OWNER' : (isAdminUser ? '⭐ ADMIN' : '👤 USER');
-            console.log(`⚡ /${command} executed by ${userType}`);
+            console.log(`✅ /${command} executed by ${userType}`);
         }
 
         await cmd.exec(sock, from, args, msg, isAdminUser || isOwner);
 
     } catch (error) {
         console.error(`❌ Command execution error [/${command}]:`, error.message);
+        console.error('   Stack:', error.stack);
 
         await sock.sendMessage(from, {
             text: `┌ ❏ *⌜ COMMAND ERROR ⌟* ❏\n│\n` +
