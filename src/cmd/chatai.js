@@ -1,6 +1,6 @@
 // commands/chatai.js - Toggle AI chat mode
 
-const chatAI = require('../src/db/chatAI');
+const chatAI = require('../db/chatAI');
 
 module.exports = {
     name: 'chatai',
