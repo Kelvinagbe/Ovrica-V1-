@@ -33,6 +33,8 @@ module.exports = {
             await sock.sendMessage(from, {
                 text: message,
                 mentions: mentions
+            }, {
+                quoted: msg  // This makes it reply to the command message
             });
 
         } catch (error) {
