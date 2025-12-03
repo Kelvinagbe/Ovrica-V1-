@@ -94,4 +94,4 @@ async function handleGroupParticipants(sock, update) {
     }
 }
 
-module.exports = { handleGroupParticipants
+module.exports = { handleGroupParticipants };
