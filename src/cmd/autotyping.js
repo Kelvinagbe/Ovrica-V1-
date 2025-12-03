@@ -52,7 +52,7 @@ module.exports = {
 
         delete require.cache[require.resolve('../../config')];
 
-        const CONFIG = require('../..config');
+        const CONFIG = require('../../config');
 
         CONFIG.autoTyping = status;
 
