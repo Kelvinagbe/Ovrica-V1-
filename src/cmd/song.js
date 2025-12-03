@@ -1,56 +1,18 @@
-// commands/song.js - Production-Ready YouTube Downloader
-// Install: npm install yt-dlp-wrap yt-search node-fetch
+// commands/song.js - Alternative API Method (No Cookies Required)
+// Install: npm install axios yt-search
 
 const fs = require('fs');
 const path = require('path');
-const YTDlpWrap = require('yt-dlp-wrap').default;
+const axios = require('axios');
 const yts = require('yt-search');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const execPromise = promisify(exec);
-
-let ytDlpWrap;
-let ytDlpPath;
-
-// Initialize yt-dlp with auto-update
-async function initYtDlp() {
-    ytDlpPath = path.join(__dirname, '../temp/yt-dlp');
-    
-    try {
-        // Download if not exists
-        if (!fs.existsSync(ytDlpPath)) {
-            console.log('📥 Downloading yt-dlp binary...');
-            await YTDlpWrap.downloadFromGithub(ytDlpPath);
-            console.log('✅ yt-dlp downloaded!');
-        }
-        
-        ytDlpWrap = new YTDlpWrap(ytDlpPath);
-        
-        // Auto-update yt-dlp (critical for YouTube compatibility)
-        try {
-            await execPromise(`${ytDlpPath} -U`);
-            console.log('✅ yt-dlp updated to latest version');
-        } catch (updateError) {
-            console.warn('⚠️ Could not auto-update yt-dlp:', updateError.message);
-        }
-    } catch (error) {
-        console.error('❌ yt-dlp initialization failed:', error);
-        throw error;
-    }
-}
 
 module.exports = {
     name: 'song',
     admin: false,
-    description: 'Search and download songs from YouTube with anti-bot protection',
+    description: 'Download songs using alternative API',
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
-            // Initialize yt-dlp
-            if (!ytDlpWrap) {
-                await initYtDlp();
-            }
-
             if (!args[0]) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ SONG DOWNLOADER ⌟* ❏\n│\n` +
@@ -138,14 +100,6 @@ module.exports = {
                 });
             }
 
-            // Download thumbnail
-            let thumbnailBuffer = null;
-            try {
-                thumbnailBuffer = await getThumbnail(video.thumbnail);
-            } catch (error) {
-                console.warn('⚠️ Thumbnail failed:', error.message);
-            }
-
             await sock.sendMessage(from, { delete: searchMsg.key }).catch(() => {});
 
             // Send info
@@ -170,8 +124,8 @@ module.exports = {
                 }
             }, { quoted: msg });
 
-            // Download media
-            await downloadMedia(sock, from, msg, video, downloadType, thumbnailBuffer);
+            // Download using API
+            await downloadWithAPI(sock, from, msg, video, downloadType);
 
         } catch (error) {
             console.error('❌ Song error:', error);
@@ -186,8 +140,8 @@ module.exports = {
     }
 };
 
-// Download with multiple fallback strategies
-async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
+// Download using multiple API fallbacks
+async function downloadWithAPI(sock, from, msg, video, type) {
     const processingMsg = await sock.sendMessage(from, {
         text: `⏳ *Downloading ${type}...*\n\n🎵 ${video.title}\n⏱️ ${video.duration}\n\n📥 Please wait...`
     }, { quoted: msg });
@@ -198,134 +152,78 @@ async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        const extension = type === 'audio' ? 'mp3' : 'mp4';
-        const fileName = `${type}_${Date.now()}.${extension}`;
-        const filePath = path.join(tempDir, fileName);
-        const cookiePath = path.join(__dirname, '../cookies.txt');
-
-        // Strategy configurations (ordered by reliability)
-        const strategies = [
+        // API endpoints (ordered by reliability)
+        const apis = [
             {
-                name: 'Android Client + OAuth',
-                args: [
-                    video.url,
-                    '--extractor-args', 'youtube:player_client=android,web',
-                    '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
-                    '-o', filePath
-                ]
+                name: 'API 1',
+                getUrl: async () => {
+                    const response = await axios.get(`https://api.vreden.my.id/api/ytplaymp3?query=${encodeURIComponent(video.title)}`, {
+                        timeout: 60000
+                    });
+                    return type === 'audio' ? response.data.result.mp3 : response.data.result.mp4;
+                }
             },
             {
-                name: 'iOS Client',
-                args: [
-                    video.url,
-                    '--extractor-args', 'youtube:player_client=ios',
-                    '--user-agent', 'com.google.ios.youtube/17.33.2 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)',
-                    '-o', filePath
-                ]
+                name: 'API 2',
+                getUrl: async () => {
+                    const response = await axios.get(`https://api.agatz.xyz/api/ytplay?message=${encodeURIComponent(video.title)}`, {
+                        timeout: 60000
+                    });
+                    return type === 'audio' ? response.data.data.mp3 : response.data.data.mp4;
+                }
             },
             {
-                name: 'Web Client with Cookies',
-                args: fs.existsSync(cookiePath) ? [
-                    video.url,
-                    '--cookies', cookiePath,
-                    '--extractor-args', 'youtube:player_client=web',
-                    '-o', filePath
-                ] : null
-            },
-            {
-                name: 'TV Client',
-                args: [
-                    video.url,
-                    '--extractor-args', 'youtube:player_client=tv_embedded',
-                    '-o', filePath
-                ]
-            },
-            {
-                name: 'Default Client',
-                args: [
-                    video.url,
-                    '--extractor-args', 'youtube:player_client=default',
-                    '-o', filePath
-                ]
-            },
-            {
-                name: 'MediaConnect (No Auth)',
-                args: [
-                    video.url,
-                    '--extractor-args', 'youtube:player_client=mediaconnect',
-                    '-o', filePath
-                ]
+                name: 'API 3',
+                getUrl: async () => {
+                    const response = await axios.get(`https://api.nyxs.pw/dl/yt-direct?url=${encodeURIComponent(video.url)}&type=${type === 'audio' ? 'audio' : 'video'}`, {
+                        timeout: 60000
+                    });
+                    return response.data.result.download;
+                }
             }
         ];
 
-        // Add format-specific arguments
-        for (const strategy of strategies) {
-            if (!strategy.args) continue;
-            
-            if (type === 'audio') {
-                strategy.args.push(
-                    '-f', 'bestaudio/best',
-                    '-x',
-                    '--audio-format', 'mp3',
-                    '--audio-quality', '0',
-                    '--embed-thumbnail',
-                    '--add-metadata'
-                );
-            } else {
-                strategy.args.push(
-                    '-f', 'best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best',
-                    '--merge-output-format', 'mp4'
-                );
-            }
+        let downloadUrl = null;
+        let successAPI = null;
 
-            // Common args for all strategies
-            strategy.args.push(
-                '--no-warnings',
-                '--no-check-certificate',
-                '--prefer-insecure',
-                '--geo-bypass',
-                '--socket-timeout', '30'
-            );
-        }
-
-        // Try each strategy
-        let lastError;
-        let successStrategy = null;
-
-        for (const strategy of strategies.filter(s => s.args)) {
+        // Try each API
+        for (const api of apis) {
             try {
-                console.log(`🔄 Trying strategy: ${strategy.name}`);
+                console.log(`🔄 Trying ${api.name}...`);
+                downloadUrl = await api.getUrl();
                 
-                await ytDlpWrap.execPromise(strategy.args);
-                
-                if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
-                    console.log(`✅ Success with: ${strategy.name}`);
-                    successStrategy = strategy.name;
+                if (downloadUrl) {
+                    console.log(`✅ Success with ${api.name}`);
+                    successAPI = api.name;
                     break;
                 }
             } catch (error) {
-                console.log(`❌ ${strategy.name} failed:`, error.message);
-                lastError = error;
-                
-                // Clean up failed attempts
-                if (fs.existsSync(filePath)) {
-                    try { fs.unlinkSync(filePath); } catch {}
-                }
+                console.log(`❌ ${api.name} failed:`, error.message);
             }
         }
 
-        // Check if download succeeded
-        if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
-            throw lastError || new Error('All download strategies failed. YouTube may be blocking requests.');
+        if (!downloadUrl) {
+            throw new Error('All API endpoints failed. Try again later.');
         }
 
-        // Read file
-        const fileBuffer = fs.readFileSync(filePath);
+        // Download file from URL
+        console.log('📥 Downloading file from:', downloadUrl);
+        const response = await axios.get(downloadUrl, {
+            responseType: 'arraybuffer',
+            timeout: 120000, // 2 minutes
+            maxContentLength: 100 * 1024 * 1024, // 100MB max
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        const fileBuffer = Buffer.from(response.data);
         const fileSizeMB = (fileBuffer.length / (1024 * 1024)).toFixed(2);
+
+        console.log(`✅ Downloaded: ${fileSizeMB}MB`);
 
         // Size check
         if (fileBuffer.length > 100 * 1024 * 1024) {
-            fs.unlinkSync(filePath);
             return await sock.sendMessage(from, {
                 text: `❌ *File too large!*\n\n📦 Size: ${fileSizeMB} MB\n⚠️ Maximum: 100 MB`,
                 edit: processingMsg.key
@@ -350,6 +248,18 @@ async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
                 }
             });
         } else {
+            // Download thumbnail
+            let thumbnailBuffer = null;
+            try {
+                const thumbResponse = await axios.get(video.thumbnail, {
+                    responseType: 'arraybuffer',
+                    timeout: 10000
+                });
+                thumbnailBuffer = Buffer.from(thumbResponse.data);
+            } catch (err) {
+                console.warn('⚠️ Thumbnail download failed');
+            }
+
             await sock.sendMessage(from, {
                 video: fileBuffer,
                 caption: `┌ ❏ *⌜ VIDEO ⌟* ❏\n│\n` +
@@ -367,12 +277,9 @@ async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
             text: `✅ *${type === 'audio' ? 'Audio' : 'Video'} sent!*\n\n` +
                 `🎵 ${video.title}\n` +
                 `📦 Size: ${fileSizeMB} MB\n` +
-                `🔧 Method: ${successStrategy}`,
+                `🔧 Method: ${successAPI}`,
             edit: processingMsg.key
         });
-
-        // Cleanup
-        fs.unlinkSync(filePath);
 
     } catch (error) {
         console.error('❌ Download error:', error);
@@ -380,18 +287,15 @@ async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
         let errorMsg = error.message;
         let errorSolution = 'Try again or try a different song';
 
-        if (error.message.includes('bot')) {
-            errorMsg = 'YouTube bot detection triggered';
-            errorSolution = 'Add cookies.txt file or wait and retry';
-        } else if (error.message.includes('Sign in')) {
-            errorMsg = 'YouTube requires authentication';
-            errorSolution = 'Export YouTube cookies to cookies.txt';
-        } else if (error.message.includes('403') || error.message.includes('410')) {
-            errorMsg = 'Video restricted or unavailable';
-            errorSolution = 'Cannot download this video';
-        } else if (error.message.includes('private') || error.message.includes('removed')) {
-            errorMsg = 'Video is private or removed';
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+            errorMsg = 'Download timeout';
+            errorSolution = 'Song may be too long, try a shorter one';
+        } else if (error.response?.status === 404) {
+            errorMsg = 'File not found';
             errorSolution = 'Try a different song';
+        } else if (error.message.includes('maxContentLength')) {
+            errorMsg = 'File too large';
+            errorSolution = 'Try a shorter song';
         }
 
         await sock.sendMessage(from, {
@@ -402,21 +306,5 @@ async function downloadMedia(sock, from, msg, video, type, thumbnailBuffer) {
                 `└ ❏\n> Powered by 🎭Kelvin🎭`,
             edit: processingMsg.key
         });
-    }
-}
-
-async function getThumbnail(url) {
-    try {
-        const https = require('https');
-        return new Promise((resolve, reject) => {
-            https.get(url, (res) => {
-                const chunks = [];
-                res.on('data', chunk => chunks.push(chunk));
-                res.on('end', () => resolve(Buffer.concat(chunks)));
-                res.on('error', reject);
-            }).on('error', reject);
-        });
-    } catch (error) {
-        return null;
     }
 }
