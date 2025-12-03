@@ -20,6 +20,9 @@ const { handleConnection } = require('@/utils/connection-handler');
 const statusListener = require('@/statusListener');
 const antilink = require('@/src/cmd/antilink');
 
+// ✅ IMPORT GROUP EVENTS HANDLER
+const { handleGroupParticipants } = require('@/utils/handlers/groupevent');
+
 // ✅ IMPORT ENERGY SYSTEM
 const { initEnergyDB, shutdown } = require('@/utils/energy-system');
 
@@ -82,6 +85,14 @@ async function connectToWhatsApp() {
                     console.error('❌ Failed to initialize status listener:', error.message);
                 }
             }
+        });
+
+        // ============================================
+        // ✅ HANDLE GROUP PARTICIPANTS UPDATE
+        // ============================================
+        sock.ev.on('group-participants.update', async (update) => {
+            console.log('📢 Group participants event triggered!');
+            await handleGroupParticipants(sock, update);
         });
 
         // ============================================
@@ -152,7 +163,7 @@ process.on('SIGTERM', async () => {
 async function startBot() {
     // Initialize bot utilities
     initializeBot();
-    
+
     // ✅ Initialize energy system
     await initEnergyDB();
 
@@ -168,7 +179,8 @@ async function startBot() {
     console.log(`   • Log Commands: ${CONFIG.logCommands ? '✓' : '✗'}`);
     console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}`);
     console.log(`   • Anti-Link: ✓ Enabled`);
-    console.log(`   • Energy System: ✓ Enabled\n`); // ✅ ADDED
+    console.log(`   • Energy System: ✓ Enabled`);
+    console.log(`   • Welcome/Goodbye: ✓ Enabled\n`); // ✅ ADDED
 
     const authPath = path.join(__dirname, 'auth_info_baileys');
     const credsPath = path.join(authPath, 'creds.json');
