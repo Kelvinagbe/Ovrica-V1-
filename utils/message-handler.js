@@ -2,7 +2,7 @@
 // COMPLETE REWRITE - Fixed @lid issue using participantAlt
 
 const { addOrUpdateUser } = require('./session-manager');
-const { isAdmin, getUserName, getCleanNumber, normalizeJid, getSender } = require('./helpers');
+const { isAdmin, getUserName, getCleanNumber, normalizeJid } = require('./helpers');
 const chatAI = require('../src/db/chatAI');
 
 // Import protection systems
@@ -22,124 +22,54 @@ try {
 }
 
 // ============================================
-// ✅ OWNER DETECTION - FIXED FOR @lid
+// OWNER DETECTION - Fixed for @lid
 // ============================================
 function isOwnerMessage(msg, sock, CONFIG) {
     try {
-        // Method 1: Message sent by bot itself
-        if (msg.key.fromMe === true) {
-            console.log('✅ Owner: Message fromMe=true');
-            return true;
-        }
+        if (msg.key.fromMe === true) return true;
 
         const from = msg.key.remoteJid;
         const isGroup = from && from.endsWith('@g.us');
 
-        // ============================================
-        // 🔥 CRITICAL FIX: Use participantAlt for @lid
-        // ============================================
+        // Use participantAlt for @lid support
         let sender;
-        
         if (isGroup) {
-            // Priority 1: participantAlt (real phone number when participant is @lid)
-            // Priority 2: participant (standard JID)
             sender = msg.key.participantAlt || msg.key.participant;
-            
-            console.log('🔍 Group participant info:');
-            console.log('   participant:', msg.key.participant);
-            console.log('   participantAlt:', msg.key.participantAlt);
-            console.log('   Selected sender:', sender);
         } else {
-            // DMs: use remoteJidAlt if available, else remoteJid
             sender = msg.key.remoteJidAlt || from;
-            
-            console.log('🔍 DM sender info:');
-            console.log('   remoteJid:', from);
-            console.log('   remoteJidAlt:', msg.key.remoteJidAlt);
-            console.log('   Selected sender:', sender);
         }
 
-        if (!sender) {
-            console.log('❌ Owner check: No sender found');
-            return false;
-        }
+        if (!sender) return false;
 
-        // Normalize to standard format
         sender = normalizeJid(sender);
-
-        // Extract clean phone numbers
         const senderNumber = getCleanNumber(sender);
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
-        const rawBotId = sock.user?.id || '';
-        const botNumber = getCleanNumber(rawBotId);
+        const botNumber = getCleanNumber(sock.user?.id || '');
 
-        // ============================================
-        // 🔍 DETAILED DEBUG OUTPUT
-        // ============================================
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('🔍 OWNER CHECK DEBUG:');
-        console.log('  Chat Type:', isGroup ? 'GROUP' : 'DM');
-        console.log('  Chat (from):', from);
-        console.log('  ');
-        console.log('  Processed Values:');
-        console.log('    Sender (final):', sender);
-        console.log('    Sender # (clean):', senderNumber);
-        console.log('  ');
-        console.log('  Comparison Targets:');
-        console.log('    Owner # (clean):', ownerNumber);
-        console.log('    Owner (CONFIG):', CONFIG.ownerNumber);
-        console.log('    Bot # (clean):', botNumber);
-        console.log('    Bot (sock.user.id):', rawBotId);
-
-        // ============================================
-        // MATCHING LOGIC
-        // ============================================
-        
-        // Primary: Exact match
+        // Exact match
         const isOwnerExact = senderNumber && ownerNumber && (senderNumber === ownerNumber);
         const isBotExact = senderNumber && botNumber && (senderNumber === botNumber);
 
-        // Fallback: Last 10 digits match
+        // Fallback: Last 10 digits
         let isOwnerFallback = false;
         let isBotFallback = false;
 
         if (!isOwnerExact && senderNumber && ownerNumber && 
             senderNumber.length >= 10 && ownerNumber.length >= 10) {
-            const senderLast10 = senderNumber.slice(-10);
-            const ownerLast10 = ownerNumber.slice(-10);
-            isOwnerFallback = senderLast10 === ownerLast10;
+            isOwnerFallback = senderNumber.slice(-10) === ownerNumber.slice(-10);
         }
 
         if (!isBotExact && senderNumber && botNumber && 
             senderNumber.length >= 10 && botNumber.length >= 10) {
-            const senderLast10 = senderNumber.slice(-10);
-            const botLast10 = botNumber.slice(-10);
-            isBotFallback = senderLast10 === botLast10;
+            isBotFallback = senderNumber.slice(-10) === botNumber.slice(-10);
         }
 
-        const isOwnerMatch = isOwnerExact || isOwnerFallback;
-        const isBotMatch = isBotExact || isBotFallback;
-        const result = isOwnerMatch || isBotMatch;
-
-        console.log('  ');
-        console.log('  Match Results:');
-        console.log('    Sender === Owner (exact)?:', isOwnerExact);
-        if (isOwnerFallback) {
-            console.log('    Sender === Owner (fallback)?:', true, '[last 10 digits]');
-        }
-        console.log('    Sender === Bot (exact)?:', isBotExact);
-        if (isBotFallback) {
-            console.log('    Sender === Bot (fallback)?:', true, '[last 10 digits]');
-        }
-        console.log('  ');
-        console.log('  🎯 FINAL RESULT:', result ? '✅ IS OWNER' : '❌ NOT OWNER');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-        return result;
+        return isOwnerExact || isOwnerFallback || isBotExact || isBotFallback;
 
     } catch (error) {
-        console.error('❌ Owner check error:', error.message);
-        console.error('   Stack:', error.stack);
+        if (CONFIG.logErrors) {
+            console.error('❌ Owner check error:', error.message);
+        }
         return false;
     }
 }
@@ -155,9 +85,7 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         const from = msg.key?.remoteJid;
         if (!from) return;
 
-        // ============================================
-        // PROTECTION SYSTEMS (Groups Only)
-        // ============================================
+        // Protection systems (Groups only)
         if (from.endsWith('@g.us')) {
             try {
                 await Promise.all([
@@ -189,42 +117,17 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (!sender) return;
 
         const userName = getUserName(msg);
-
-        // ✅ CRITICAL: Check owner status FIRST
         const isOwner = isOwnerMessage(msg, sock, CONFIG);
-
-        // ✅ CRITICAL: Check admin status (owner is auto-admin)
         const isAdminUser = isOwner ? true : isAdmin(sender, CONFIG.admins);
-
-        // Extract message text
         const text = extractMessageText(msg);
         const isCommand = text && (text.startsWith('/') || text.startsWith('!'));
-
-        // ============================================
-        // DEBUG: Log all command attempts
-        // ============================================
-        if (isCommand) {
-            const commandName = text.split(' ')[0];
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('⚡ COMMAND ATTEMPT:');
-            console.log(`├─ User: ${userName}`);
-            console.log(`├─ Chat: ${isGroup ? 'GROUP' : 'DM'}`);
-            console.log(`├─ From: ${from}`);
-            console.log(`├─ Sender: ${sender}`);
-            console.log(`├─ Is Owner: ${isOwner ? '✅ YES' : '❌ NO'}`);
-            console.log(`├─ Is Admin: ${isAdminUser ? '✅ YES' : '❌ NO'}`);
-            console.log(`├─ Command: ${commandName}`);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        }
 
         // Save user session (exclude owner)
         if (!isOwner) {
             addOrUpdateUser(from, userName, isGroup);
         }
 
-        // ============================================
-        // AUTO-REACT
-        // ============================================
+        // Auto-react
         if (CONFIG.autoReact && !isCommand && !isOwner) {
             const reactChance = CONFIG.reactChance || 0.3;
             if (Math.random() < reactChance) {
@@ -237,7 +140,6 @@ async function handleMessage(messages, sock, CONFIG, commands) {
 
         // Private mode enforcement
         if (CONFIG.botMode === 'private' && !isAdminUser && !isOwner && isCommand) {
-            console.log(`🔒 Private mode: Blocked ${userName}`);
             return;
         }
 
@@ -250,22 +152,16 @@ async function handleMessage(messages, sock, CONFIG, commands) {
         if (await handleTxt2ImgSession(sock, from, msg, text, userName)) return;
         if (await handleSongSelection(sock, from, msg, text, commands)) return;
 
-        // ============================================
-        // AI CHAT INTEGRATION
-        // ============================================
+        // AI chat integration
         if (!isCommand && text && !isOwner) {
             const shouldRespondWithAI = checkIfShouldRespondWithAI(msg, from, isGroup, sock);
-
             if (shouldRespondWithAI) {
-                console.log('🤖 AI responding to message');
                 const aiHandled = await chatAI.handleAIChat(sock, from, text, msg);
                 if (aiHandled) return;
             }
         }
 
-        // ============================================
-        // EXECUTE COMMAND
-        // ============================================
+        // Execute command
         if (isCommand && text) {
             await executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFIG, commands);
         }
@@ -273,7 +169,6 @@ async function handleMessage(messages, sock, CONFIG, commands) {
     } catch (error) {
         if (CONFIG.logErrors) {
             console.error('❌ Message handler error:', error.message);
-            console.error('   Stack:', error.stack);
         }
     }
 }
@@ -285,15 +180,9 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
     try {
         const emojis = CONFIG.reactEmojis || ['❤️', '👍', '🔥', '😂', '✨'];
         const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-
         await sock.sendMessage(from, {
             react: { text: emoji, key: msg.key }
         });
-
-        // Only log occasionally to reduce spam
-        if (Math.random() < 0.1) {
-            console.log(`🎭 Auto-reacted with ${emoji}`);
-        }
     } catch (error) {
         // Silently fail - reactions are non-critical
     }
@@ -303,11 +192,7 @@ async function autoReactToMessage(sock, from, msg, CONFIG) {
 // AI TRIGGER DETECTION
 // ============================================
 function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
-    // Always respond in DMs
-    if (!isGroup) {
-        console.log('🤖 AI: Direct message');
-        return true;
-    }
+    if (!isGroup) return true;
 
     try {
         const botNumber = sock.user?.id?.split(':')[0];
@@ -320,42 +205,26 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
             return mentionNumber && botNumber && mentionNumber === botNumber;
         });
 
-        if (isMentioned) {
-            console.log('🤖 AI: Bot mentioned');
-            return true;
-        }
+        if (isMentioned) return true;
 
         // Check replies to bot
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
         if (contextInfo) {
-            const quotedParticipant = contextInfo.participant;
-            const isFromMe = contextInfo.fromMe;
+            if (contextInfo.fromMe === true) return true;
 
-            if (isFromMe === true) {
-                console.log('🤖 AI: Reply to bot message (fromMe)');
-                return true;
-            }
-
-            if (quotedParticipant) {
-                const quotedNumber = getCleanNumber(quotedParticipant);
-                if (quotedNumber && botNumber && quotedNumber === botNumber) {
-                    console.log('🤖 AI: Reply to bot message (participant)');
-                    return true;
-                }
+            if (contextInfo.participant) {
+                const quotedNumber = getCleanNumber(contextInfo.participant);
+                if (quotedNumber && botNumber && quotedNumber === botNumber) return true;
             }
         }
 
         // Check text for bot tag
         const messageText = extractMessageText(msg);
-        if (messageText && botNumber && messageText.includes(`@${botNumber}`)) {
-            console.log('🤖 AI: Bot tagged in text');
-            return true;
-        }
+        if (messageText && botNumber && messageText.includes(`@${botNumber}`)) return true;
 
         return false;
 
     } catch (error) {
-        console.error('❌ AI trigger error:', error);
         return false;
     }
 }
@@ -393,7 +262,6 @@ async function handleStatusView(sock, msg, CONFIG) {
         if (msg.key.participant) {
             statusViewed.add(msg.key.participant);
         }
-        console.log('✅ Status viewed and reacted');
     } catch (error) {
         // Silently fail
     }
@@ -406,7 +274,6 @@ async function handleTxt2ImgSession(sock, from, msg, text, userName) {
 
         const session = txt2img.userSessions.get(from);
         if (session && /^[1-5]$/.test(text.trim())) {
-            console.log(`🎨 txt2img style selection: ${text.trim()}`);
             txt2img.userSessions.delete(from);
             if (txt2img.generateImage) {
                 await txt2img.generateImage(sock, from, msg, session.prompt, text.trim());
@@ -426,12 +293,10 @@ async function handleSongSelection(sock, from, msg, text, commands) {
         const songCommand = commands['song'];
         if (!songCommand) return false;
 
-        console.log(`🎵 Song selection: ${text.trim()}`);
         await songCommand.exec(sock, from, [text.trim()], msg, false);
         return true;
 
     } catch (error) {
-        console.error('❌ Song selection error:', error);
         return false;
     }
 }
@@ -452,18 +317,12 @@ async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFI
     const args = parts.slice(1);
 
     try {
-        if (!commands[command]) {
-            console.log(`⚠️  Unknown command: /${command}`);
-            return;
-        }
+        if (!commands[command]) return;
 
         const cmd = commands[command];
 
-        // ============================================
-        // OWNER-ONLY COMMAND CHECK
-        // ============================================
+        // Owner-only command check
         if (cmd.owner && !isOwner) {
-            console.log(`🚫 Owner command blocked: /${command} by ${getUserName(msg)}`);
             await sock.sendMessage(from, {
                 text: `┌ ❏ *⌜ OWNER ONLY ⌟* ❏\n│\n` +
                     `├◆ 👑 This command is restricted to the bot owner\n` +
@@ -474,11 +333,8 @@ async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFI
             return;
         }
 
-        // ============================================
-        // ADMIN-ONLY COMMAND CHECK
-        // ============================================
+        // Admin-only command check
         if (cmd.admin && !isAdminUser && !isOwner) {
-            console.log(`🚫 Admin command blocked: /${command} by ${getUserName(msg)}`);
             if (CONFIG.botMode === 'public') {
                 await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ ACCESS DENIED ⌟* ❏\n│\n` +
@@ -490,19 +346,13 @@ async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFI
             return;
         }
 
-        // ============================================
-        // EXECUTE COMMAND
-        // ============================================
-        if (CONFIG.logCommands) {
-            const userType = isOwner ? '👑 OWNER' : (isAdminUser ? '⭐ ADMIN' : '👤 USER');
-            console.log(`✅ /${command} executed by ${userType}`);
-        }
-
+        // Execute command
         await cmd.exec(sock, from, args, msg, isAdminUser || isOwner);
 
     } catch (error) {
-        console.error(`❌ Command execution error [/${command}]:`, error.message);
-        console.error('   Stack:', error.stack);
+        if (CONFIG.logErrors) {
+            console.error(`❌ Command error [/${command}]:`, error.message);
+        }
 
         await sock.sendMessage(from, {
             text: `┌ ❏ *⌜ COMMAND ERROR ⌟* ❏\n│\n` +
