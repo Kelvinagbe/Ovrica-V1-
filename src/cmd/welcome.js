@@ -81,7 +81,7 @@ module.exports = {
             }
 
             const status = action === 'on' ? '✅ enabled' : '❌ disabled';
-            const welcomeMessage = `Welcome messages have been ${status}!\n\n> POWERED 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
+            const welcomeMessage = `Welcome messages have been ${status}!\n\n> POWERED by 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
 
             // Prepare message options
             const messageOptions = {
