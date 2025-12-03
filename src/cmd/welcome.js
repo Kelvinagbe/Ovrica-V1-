@@ -4,10 +4,38 @@ const { templates } = require('../tmp/templates');
 const path = require('path');
 const fs = require('fs');
 
+// Simple JSON file storage for group settings
+const settingsPath = path.join(process.cwd(), 'data', 'group-settings.json');
+
+// Load settings
+function loadSettings() {
+    try {
+        if (fs.existsSync(settingsPath)) {
+            return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+    return {};
+}
+
+// Save settings
+function saveSettings(settings) {
+    try {
+        const dataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    } catch (error) {
+        console.error('Error saving settings:', error);
+    }
+}
+
 module.exports = {
     name: 'welcome',
     admin: true,
-    description: 'Toggle welcome messages for new members',
+    description: 'Toggle welcome messages (on/off)',
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         // Check if it's a group
         if (!from.endsWith('@g.us')) {
@@ -15,10 +43,33 @@ module.exports = {
             return await sendWithTyping(sock, from, { text });
         }
 
-        // You'll need to implement a database or config file to store welcome settings
-        // This is a basic structure - you need to add your own storage logic
-        
+        if (args.length === 0) {
+            const text = templates.error('Usage: /welcome <on|off>\n\nExample: /welcome on');
+            return await sendWithTyping(sock, from, { text });
+        }
+
+        const action = args[0].toLowerCase();
+
+        if (action !== 'on' && action !== 'off') {
+            const text = templates.error('Invalid option! Use "on" or "off"\n\nExample: /welcome on');
+            return await sendWithTyping(sock, from, { text });
+        }
+
         try {
+            // Load current settings
+            const settings = loadSettings();
+            
+            // Initialize group settings if not exists
+            if (!settings[from]) {
+                settings[from] = {};
+            }
+
+            // Update welcome setting
+            settings[from].welcome = (action === 'on');
+            
+            // Save settings
+            saveSettings(settings);
+
             // Load local thumbnail
             const thumbnailPath = path.join(process.cwd(), 'assets', 'app.png');
             let thumbnailBuffer = null;
@@ -29,7 +80,8 @@ module.exports = {
                 console.log('⚠️ Thumbnail not found at assets/app.png');
             }
 
-            const welcomeMessage = `✅ Welcome messages have been enabled!\nNew members will receive a welcome message.\n\n> POWERED 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
+            const status = action === 'on' ? '✅ enabled' : '❌ disabled';
+            const welcomeMessage = `Welcome messages have been ${status}!\n\n> POWERED 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
 
             // Prepare message options
             const messageOptions = {
