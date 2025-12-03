@@ -1,44 +1,79 @@
-// commands.js - Auto-load commands from /commands folder
+// commands.js - PERFORMANCE OPTIMIZED
 require('module-alias/register');
 const fs = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
-// Load templates
+// ============================================
+// PERFORMANCE OPTIMIZATIONS
+// ============================================
+// 1. Lazy template loading (only when needed)
+// 2. Cached require for hot-reload
+// 3. Batch file loading
+// 4. Optimized typing indicators
+
 let templates, design, getServerStatus;
-try {
-    const templateModule = require('./tmp/templates');
-    templates = templateModule.templates;
-    design = templateModule.design;
-    getServerStatus = templateModule.getServerStatus;
-} catch (error) {
-    console.error('❌ Failed to load templates:', error.message);
-    process.exit(1);
+let templatesLoaded = false;
+
+function loadTemplates() {
+    if (templatesLoaded) return;
+    try {
+        const templateModule = require('./tmp/templates');
+        templates = templateModule.templates;
+        design = templateModule.design;
+        getServerStatus = templateModule.getServerStatus;
+        templatesLoaded = true;
+    } catch (error) {
+        console.error('❌ Failed to load templates:', error.message);
+        process.exit(1);
+    }
 }
 
-// Helper function for typing indicator
+// ============================================
+// OPTIMIZED TYPING INDICATOR
+// ============================================
+let CONFIG;
+let messageQueue;
+
 async function sendWithTyping(sock, jid, content) {
-    const CONFIG = require('@/config');
-    const messageQueue = require('@/index').messageQueue;
+    // Lazy load CONFIG
+    if (!CONFIG) CONFIG = require('@/config');
+    if (!messageQueue) messageQueue = require('@/index').messageQueue;
 
-    const delay = Math.max(0, 2000 - (Date.now() - (messageQueue.get(jid) || 0)));
-    if (delay > 0) await new Promise(r => setTimeout(r, delay));
-
-    if (CONFIG.autoTyping) {
-        await sock.sendPresenceUpdate('composing', jid);
-        await new Promise(r => setTimeout(r, 1500));
+    // Fast path: No typing simulation
+    if (!CONFIG.autoTyping) {
+        await sock.sendMessage(jid, typeof content === 'string' ? { text: content } : content);
+        messageQueue.set(jid, Date.now());
+        return;
     }
 
+    // Optimized delay calculation
+    const lastMsg = messageQueue.get(jid) || 0;
+    const delay = Math.max(0, 2000 - (Date.now() - lastMsg));
+    
+    if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+    // Parallel typing + delayed send
+    const typingPromise = sock.sendPresenceUpdate('composing', jid);
+    const delayPromise = new Promise(r => setTimeout(r, 1500));
+    
+    await Promise.all([typingPromise, delayPromise]);
+
+    // Send message
     await sock.sendMessage(jid, typeof content === 'string' ? { text: content } : content);
 
-    if (CONFIG.autoTyping) await sock.sendPresenceUpdate('available', jid);
+    // Set available status (fire and forget)
+    sock.sendPresenceUpdate('available', jid).catch(() => {});
     messageQueue.set(jid, Date.now());
 }
 
-// Auto-load commands from /commands folder
+// ============================================
+// OPTIMIZED COMMAND LOADER
+// ============================================
 const commands = {};
 const commandsDir = path.join(__dirname, './cmd');
-let commandsLoaded = false; // Track if we've already logged
+let commandsLoaded = false;
+let lastLoadTime = 0;
 
 function loadCommands(silent = false) {
     if (!fs.existsSync(commandsDir)) {
@@ -49,25 +84,25 @@ function loadCommands(silent = false) {
     }
 
     const files = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
+    let loadedCount = 0;
 
+    // Batch process files
     files.forEach(file => {
         try {
             const commandPath = path.join(commandsDir, file);
-            delete require.cache[require.resolve(commandPath)]; // Clear cache for hot reload
+            delete require.cache[require.resolve(commandPath)];
             const command = require(commandPath);
 
             if (command.name && command.exec) {
                 commands[command.name] = {
                     admin: command.admin || false,
+                    owner: command.owner || false,
                     description: command.description || 'No description',
                     exec: async (sock, from, args, msg, isAdmin) => {
                         return command.exec(sock, from, args, msg, isAdmin, sendWithTyping);
                     }
                 };
-                // Only log on initial load
-                if (!silent && !commandsLoaded) {
-                    console.log(`✅ Loaded command: ${command.name}`);
-                }
+                loadedCount++;
             }
         } catch (error) {
             if (!silent && !commandsLoaded) {
@@ -75,34 +110,36 @@ function loadCommands(silent = false) {
             }
         }
     });
+
+    if (!silent && !commandsLoaded) {
+        console.log(`✅ Loaded ${loadedCount} commands`);
+    }
+
+    lastLoadTime = Date.now();
 }
 
-// Reload templates function (for hot-reload)
+// ============================================
+// OPTIMIZED TEMPLATE RELOAD
+// ============================================
 function reloadTemplates() {
     try {
-        // Clear all JSON file caches
+        // Clear caches in batch
         const jsonFiles = [
             './tmp/json/commands.json',
             './tmp/symbols.json',
             './head.json'
-        ];
-        
-        jsonFiles.forEach(file => {
-            const fullPath = path.resolve(__dirname, file);
-            if (require.cache[fullPath]) {
-                delete require.cache[fullPath];
-            }
+        ].map(f => path.resolve(__dirname, f));
+
+        jsonFiles.forEach(fullPath => {
+            delete require.cache[fullPath];
         });
 
         // Clear templates cache
         delete require.cache[require.resolve('./tmp/templates')];
-        
-        // Reload templates
-        const templateModule = require('./tmp/templates');
-        templates = templateModule.templates;
-        design = templateModule.design;
-        getServerStatus = templateModule.getServerStatus;
-        
+
+        // Reload
+        templatesLoaded = false;
+        loadTemplates();
         return true;
     } catch (error) {
         console.error('⚠️  Failed to reload templates:', error.message);
@@ -110,30 +147,46 @@ function reloadTemplates() {
     }
 }
 
-// Initial load with logging
+// ============================================
+// INITIAL LOAD
+// ============================================
 loadCommands(false);
 commandsLoaded = true;
 console.log(`\n📦 Total commands loaded: ${Object.keys(commands).length}\n`);
 
-// Export with auto-reload support (optimized)
-let lastReloadTime = 0;
-const RELOAD_COOLDOWN = 5000; // 5 seconds cooldown
+// ============================================
+// OPTIMIZED PROXY WITH COOLDOWN
+// ============================================
+const RELOAD_COOLDOWN = 5000; // 5 seconds
 
 module.exports = new Proxy(commands, {
     get(target, prop) {
-        // Only reload if enough time has passed (prevents excessive reloading)
+        // Only reload if cooldown passed
         const now = Date.now();
-        if (now - lastReloadTime > RELOAD_COOLDOWN) {
+        if (now - lastLoadTime > RELOAD_COOLDOWN) {
             reloadTemplates();
-            loadCommands(true); // Silent mode
-            lastReloadTime = now;
+            loadCommands(true);
         }
         return target[prop];
     }
 });
 
+// Export utilities
 module.exports.sendWithTyping = sendWithTyping;
-module.exports.templates = templates;
-module.exports.design = design;
-module.exports.getServerStatus = getServerStatus;
+module.exports.templates = new Proxy({}, {
+    get() {
+        loadTemplates();
+        return templates;
+    }
+});
+module.exports.design = new Proxy({}, {
+    get() {
+        loadTemplates();
+        return design;
+    }
+});
+module.exports.getServerStatus = function() {
+    loadTemplates();
+    return getServerStatus;
+};
 module.exports.reloadTemplates = reloadTemplates;
