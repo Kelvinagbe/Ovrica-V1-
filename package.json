@@ -90,6 +90,8 @@
 
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
 
+    "axios": "^1.13.2",
+
     "dotenv": "^17.2.3",
 
     "lowdb": "^7.0.1",
