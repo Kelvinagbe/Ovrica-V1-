@@ -13,6 +13,11 @@
           "/tagall",
           "/hidetag",
           "/lock",
+          "/setdesc",
+          "/setname",
+          "/welcome",
+          "/goodbye",
+           "/mute",
           "/unlock"
         ]
       },
