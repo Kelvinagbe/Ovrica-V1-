@@ -1,4 +1,4 @@
-// commands/prompt.js - Generate AI prompt from image using Hugging Face
+// commands/prompt.js - Simple AI Prompt Generator (No External API)
 
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
@@ -45,123 +45,75 @@ module.exports = {
             const contextInfo = msg.message.extendedTextMessage.contextInfo;
             const sender = contextInfo.participant || from;
             const senderName = msg.pushName || 'Unknown';
+            const imageMsg = quotedMsg.imageMessage;
 
             await sock.sendMessage(from, {
                 text: `⏳ *Analyzing image...*\n\n` +
-                    `🔍 AI is detecting:\n` +
-                    `• Main subjects & objects\n` +
-                    `• Art style & aesthetics\n` +
-                    `• Colors & composition\n` +
-                    `• Details & mood\n\n` +
-                    `⏱️ This takes 5-15 seconds...`
+                    `🔍 Generating smart prompts...\n` +
+                    `⏱️ Just a moment...`
             }, { quoted: msg });
 
             try {
-                const messageForDownload = {
-                    key: {
-                        remoteJid: from,
-                        id: contextInfo.stanzaId,
-                        participant: sender
-                    },
-                    message: quotedMsg
-                };
-
-                const buffer = await downloadMediaMessage(
-                    messageForDownload,
-                    'buffer',
-                    {},
-                    {
-                        logger: console,
-                        reuploadRequest: sock.updateMediaMessage
-                    }
-                );
-
-                // Try multiple free APIs with fallback
-                let baseDescription = "an image";
-                let tags = [];
-                let confidence = 'medium';
-
-                // Try API 1: nlpconnect/vit-gpt2 (faster, more reliable)
-                try {
-                    const res = await fetch(
-                        "https://api-inference.huggingface.co/models/nlpconnect/vit-gpt2-image-captioning",
-                        {
-                            method: "POST",
-                            body: buffer
-                        }
-                    );
-                    if (res.ok) {
-                        const data = await res.json();
-                        baseDescription = data[0]?.generated_text || baseDescription;
-                    }
-                } catch (e) {
-                    // Try API 2: BLIP base (fallback)
-                    try {
-                        const res = await fetch(
-                            "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
-                            {
-                                method: "POST",
-                                body: buffer
-                            }
-                        );
-                        if (res.ok) {
-                            const data = await res.json();
-                            baseDescription = data[0]?.generated_text || baseDescription;
-                        }
-                    } catch (e2) {}
+                // Extract any existing caption from the image
+                const existingCaption = imageMsg.caption || '';
+                
+                // Analyze image metadata
+                const mimetype = imageMsg.mimetype || 'image/jpeg';
+                const isPhoto = mimetype.includes('jpeg') || mimetype.includes('jpg');
+                const isPNG = mimetype.includes('png');
+                
+                // Generate intelligent prompts based on metadata and context
+                let style = 'professional photography, high quality';
+                let composition = 'balanced composition, rule of thirds';
+                let lighting = 'natural lighting, well-lit';
+                let quality = 'highly detailed, 4k resolution, sharp focus, masterpiece';
+                
+                // Adjust based on image type
+                if (isPNG) {
+                    style = 'digital art, clean lines, professional design';
+                    lighting = 'studio lighting, clean background';
                 }
-
-                // Get tags (optional, don't fail if unavailable)
-                try {
-                    const res = await fetch(
-                        "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
-                        {
-                            method: "POST",
-                            body: buffer
-                        }
-                    );
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (Array.isArray(data)) {
-                            tags = data.slice(0, 5).map(item => item.label);
-                            confidence = data[0]?.score > 0.7 ? 'high' : 'medium';
-                        }
-                    }
-                } catch (e) {}
-
-                // Enhance the prompt
-                const artStyle = this.detectArtStyle(baseDescription, tags);
-                const colorPalette = this.detectColors(baseDescription, tags);
-                const composition = this.detectComposition(baseDescription);
-                const qualityTags = "highly detailed, professional quality, 4k resolution, sharp focus, masterpiece";
-
+                
+                // Use caption if available
+                let mainSubject = existingCaption || 'the subject matter';
+                if (mainSubject.length > 100) {
+                    mainSubject = mainSubject.substring(0, 100) + '...';
+                }
+                
                 // Build comprehensive prompts
-                const mainPrompt = `${baseDescription}, ${tags.slice(0, 3).join(', ')}`;
-                
-                const midjourneyPrompt = `${mainPrompt}, ${artStyle}, ${colorPalette}, ${composition}, ${qualityTags} --v 6 --ar 16:9 --style raw`;
-                
-                const dallePrompt = `Create a highly detailed and professional image: ${baseDescription}. The image should feature ${tags.slice(0, 3).join(', ')} with a ${artStyle} aesthetic. Use ${colorPalette} color scheme with ${composition} composition. Ensure sharp focus, vibrant colors, and masterpiece quality.`;
-                
-                const stableDiffusionPrompt = `${mainPrompt}, ${artStyle}, ${colorPalette}, ${composition}, ${qualityTags}, 8k uhd, studio lighting, professional photography, trending on artstation, award winning`;
+                const basePrompt = existingCaption 
+                    ? `${existingCaption}, ${style}, ${quality}`
+                    : `high quality image, ${style}, detailed scene, ${composition}, ${lighting}, ${quality}`;
 
-                const negativePrompt = "blurry, low quality, distorted, ugly, deformed, mutated, disfigured, bad anatomy, bad proportions, watermark, signature, text, low resolution, pixelated, noise, grain, overexposed, underexposed, out of frame";
+                const midjourneyPrompt = existingCaption
+                    ? `${existingCaption}, ${style}, professional grade, cinematic lighting, ${quality} --v 6 --ar 16:9 --style raw --q 2`
+                    : `professional photograph, ${composition}, ${lighting}, ${style}, ${quality} --v 6 --ar 16:9 --style raw`;
+                
+                const dallePrompt = existingCaption
+                    ? `Create a highly detailed and professional image: ${existingCaption}. Style: ${style}. The image should feature ${composition} with ${lighting}. Ensure sharp focus, vibrant colors, and exceptional quality.`
+                    : `Create a professional, highly detailed image with ${composition}. Use ${lighting} and ${style} aesthetic. Focus on clarity, vibrant colors, and masterpiece quality rendering.`;
+                
+                const stableDiffusionPrompt = existingCaption
+                    ? `${existingCaption}, ${style}, ${composition}, ${lighting}, ${quality}, 8k uhd, professional photography, trending on artstation, award winning, photorealistic`
+                    : `professional image, ${style}, ${composition}, ${lighting}, ${quality}, 8k uhd, detailed render, cinematic, trending on artstation`;
+
+                const negativePrompt = "blurry, low quality, distorted, ugly, deformed, bad anatomy, watermark, text, low resolution, pixelated, noise, overexposed, underexposed, out of frame, duplicate, grainy";
 
                 const resultText = 
                     `┌ ❏ *⌜ AI PROMPT GENERATED ⌟* ❏\n` +
                     `│\n` +
-                    `├◆ ✅ *Analysis Complete!*\n` +
+                    `├◆ ✅ *Prompts Ready!*\n` +
                     `├◆ 👤 *Requested by:* ${senderName}\n` +
-                    `├◆ 🎯 *Confidence:* ${confidence === 'high' ? '95%' : '85%'}\n` +
+                    (existingCaption ? `├◆ 📝 *Original caption found*\n` : `├◆ 📝 *Generic prompts generated*\n`) +
                     `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { hour12: true })}\n` +
                     `│\n` +
                     `└ ❏\n\n` +
-                    `🎨 *MAIN DESCRIPTION:*\n` +
-                    `${baseDescription}\n\n` +
-                    `🔧 *DETECTED ELEMENTS:*\n` +
-                    `• Objects: ${tags.join(', ') || 'general scene'}\n` +
-                    `• Style: ${artStyle}\n` +
-                    `• Colors: ${colorPalette}\n` +
-                    `• Composition: ${composition}\n\n` +
+                    (existingCaption ? `🎨 *ORIGINAL CAPTION:*\n${mainSubject}\n\n` : '') +
+                    `🔧 *SUGGESTED ELEMENTS:*\n` +
+                    `• Style: ${style}\n` +
+                    `• Composition: ${composition}\n` +
+                    `• Lighting: ${lighting}\n` +
+                    `• Quality: Professional, detailed\n\n` +
                     `━━━━━━━━━━━━━━━━━━━━━\n\n` +
                     `💡 *COPY-PASTE PROMPTS:*\n\n` +
                     `*For Midjourney v6:*\n` +
@@ -178,11 +130,11 @@ module.exports = {
                     `┌ ❏ *⌜ PRO TIPS ⌟* ❏\n` +
                     `│\n` +
                     `├◆ 📋 Copy entire prompt block\n` +
-                    `├◆ 🎨 Adjust style keywords as needed\n` +
-                    `├◆ 🔢 Change aspect ratio (--ar)\n` +
-                    `├◆ 💪 Add weight to important words\n` +
-                    `├◆ 🔄 Try different AI generators\n` +
-                    `├◆ ⚡ Experiment with variations\n` +
+                    `├◆ 🎨 Customize style keywords\n` +
+                    `├◆ 🔢 Adjust --ar ratio (16:9, 1:1, 9:16)\n` +
+                    `├◆ 💪 Add specific details you want\n` +
+                    `├◆ 🔄 Experiment across platforms\n` +
+                    (existingCaption ? `├◆ ✏️ Original caption included in prompts\n` : `├◆ ✏️ Add your own subject details\n`) +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`;
@@ -192,117 +144,24 @@ module.exports = {
                 }, { quoted: msg });
 
             } catch (extractError) {
-                if (extractError.message === 'MODEL_LOADING') {
-                    throw new Error('AI model is loading. Please wait 20 seconds and try again.');
-                }
-                throw new Error(`Analysis failed: ${extractError.message}`);
+                throw new Error(`Generation failed: ${extractError.message}`);
             }
 
         } catch (error) {
-            let errorMsg = error.message;
-            let errorSolution = 'Try again in a few moments';
-
-            if (error.message.includes('MODEL_LOADING') || error.message.includes('loading')) {
-                errorMsg = 'AI model is warming up';
-                errorSolution = 'Wait 20-30 seconds and try again';
-            } else if (error.message.includes('Image analysis failed')) {
-                errorMsg = 'AI service temporarily busy';
-                errorSolution = 'Wait 10-20 seconds and try again';
-            } else if (error.message.includes('download')) {
-                errorMsg = 'Could not download image';
-                errorSolution = 'Image may be too large (max 5MB)';
-            } else if (error.message.includes('rate')) {
-                errorMsg = 'Too many requests';
-                errorSolution = 'Wait 1 minute and try again';
-            }
-
             await sock.sendMessage(from, {
                 text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
                     `│\n` +
                     `├◆ ❌ *Failed to generate prompt*\n` +
-                    `├◆ 📝 *Error:* ${errorMsg}\n` +
-                    `├◆ 💡 *Solution:* ${errorSolution}\n` +
+                    `├◆ 📝 *Error:* ${error.message}\n` +
                     `│\n` +
-                    `├◆ 🔧 *Possible reasons:*\n` +
-                    `├◆    • Model loading (first use)\n` +
-                    `├◆    • Rate limit reached\n` +
-                    `├◆    • Image too large (>5MB)\n` +
-                    `├◆    • Network error\n` +
-                    `├◆    • Invalid image format\n` +
-                    `│\n` +
-                    `├◆ 💡 *Tips:*\n` +
-                    `├◆    • Wait and retry\n` +
-                    `├◆    • Use smaller images\n` +
-                    `├◆    • Try during off-peak hours\n` +
+                    `├◆ 🔧 *Solution:*\n` +
+                    `├◆    • Make sure to reply to an image\n` +
+                    `├◆    • Check image isn't corrupted\n` +
+                    `├◆    • Try a different image\n` +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`
             }, { quoted: msg });
-        }
-    },
-
-    detectArtStyle(description, tags) {
-        const desc = description.toLowerCase();
-        const allTags = tags.join(' ').toLowerCase();
-        
-        if (desc.includes('painting') || allTags.includes('painting')) {
-            return 'oil painting style, artistic canvas texture, traditional art';
-        } else if (desc.includes('cartoon') || allTags.includes('cartoon') || allTags.includes('animated')) {
-            return 'cartoon style, animated, cel-shaded, vibrant colors';
-        } else if (desc.includes('drawing') || allTags.includes('sketch') || allTags.includes('pencil')) {
-            return 'hand-drawn, sketch style, pencil art, artistic linework';
-        } else if (desc.includes('anime') || allTags.includes('anime') || allTags.includes('manga')) {
-            return 'anime style, manga art, japanese animation';
-        } else if (desc.includes('photo') || allTags.includes('photograph')) {
-            return 'photorealistic, professional photography, cinematic';
-        } else if (allTags.includes('digital') || allTags.includes('render') || allTags.includes('cgi')) {
-            return 'digital art, 3d render, CGI, octane render';
-        } else if (desc.includes('abstract') || allTags.includes('abstract')) {
-            return 'abstract art, modern art, contemporary';
-        } else {
-            return 'professional style, high quality render';
-        }
-    },
-
-    detectColors(description, tags) {
-        const desc = description.toLowerCase();
-        const allTags = tags.join(' ').toLowerCase();
-        
-        const colorKeywords = {
-            'warm': ['warm', 'orange', 'red', 'yellow', 'sunset', 'golden'],
-            'cool': ['cool', 'blue', 'cyan', 'teal', 'ice', 'winter'],
-            'vibrant': ['vibrant', 'colorful', 'bright', 'vivid', 'saturated'],
-            'muted': ['muted', 'pastel', 'soft', 'subtle', 'pale'],
-            'dark': ['dark', 'black', 'night', 'shadow', 'noir'],
-            'light': ['light', 'white', 'bright', 'airy', 'luminous']
-        };
-
-        for (const [palette, keywords] of Object.entries(colorKeywords)) {
-            if (keywords.some(kw => desc.includes(kw) || allTags.includes(kw))) {
-                return `${palette} color palette`;
-            }
-        }
-
-        return 'natural color palette, balanced tones';
-    },
-
-    detectComposition(description) {
-        const desc = description.toLowerCase();
-        
-        if (desc.includes('close') || desc.includes('closeup') || desc.includes('macro')) {
-            return 'close-up shot, detailed macro photography';
-        } else if (desc.includes('portrait')) {
-            return 'portrait composition, centered subject';
-        } else if (desc.includes('landscape') || desc.includes('wide')) {
-            return 'wide angle, landscape composition';
-        } else if (desc.includes('side') || desc.includes('profile')) {
-            return 'side view, profile angle';
-        } else if (desc.includes('top') || desc.includes('above') || desc.includes('aerial')) {
-            return 'top-down view, aerial perspective';
-        } else if (desc.includes('dramatic') || desc.includes('dynamic')) {
-            return 'dynamic composition, dramatic angle';
-        } else {
-            return 'balanced composition, rule of thirds';
         }
     }
 };
