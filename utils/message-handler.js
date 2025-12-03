@@ -1,5 +1,5 @@
 // FILE: utils/message-handler.js
-// COMPLETE REWRITE - Fixed owner detection for groups and DMs with @lid support
+// COMPLETE REWRITE - Fixed @lid issue using participantAlt
 
 const { addOrUpdateUser } = require('./session-manager');
 const { isAdmin, getUserName, getCleanNumber, normalizeJid, getSender } = require('./helpers');
@@ -22,7 +22,7 @@ try {
 }
 
 // ============================================
-// ✅ OWNER DETECTION - Works in groups and DMs
+// ✅ OWNER DETECTION - FIXED FOR @lid
 // ============================================
 function isOwnerMessage(msg, sock, CONFIG) {
     try {
@@ -36,30 +36,27 @@ function isOwnerMessage(msg, sock, CONFIG) {
         const isGroup = from && from.endsWith('@g.us');
 
         // ============================================
-        // 🔥 CRITICAL FIX: Handle @lid in groups
+        // 🔥 CRITICAL FIX: Use participantAlt for @lid
         // ============================================
         let sender;
         
         if (isGroup) {
-            // Priority 1: participantPn (real phone number, handles @lid)
-            // Priority 2: participant (may be @lid format)
-            sender = msg.key.participantPn || msg.key.participant;
-
-            // If still @lid, try contextInfo for real JID
-            if (sender && sender.endsWith('@lid')) {
-                const contextParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
-                if (contextParticipant && !contextParticipant.endsWith('@lid')) {
-                    sender = contextParticipant;
-                    console.log('🔄 Using contextInfo participant:', sender);
-                } else {
-                    // Last resort: normalize @lid to standard JID
-                    sender = normalizeJid(sender);
-                    console.log('🔄 Normalized @lid to:', sender);
-                }
-            }
+            // Priority 1: participantAlt (real phone number when participant is @lid)
+            // Priority 2: participant (standard JID)
+            sender = msg.key.participantAlt || msg.key.participant;
+            
+            console.log('🔍 Group participant info:');
+            console.log('   participant:', msg.key.participant);
+            console.log('   participantAlt:', msg.key.participantAlt);
+            console.log('   Selected sender:', sender);
         } else {
-            // DMs: use remoteJid directly
-            sender = from;
+            // DMs: use remoteJidAlt if available, else remoteJid
+            sender = msg.key.remoteJidAlt || from;
+            
+            console.log('🔍 DM sender info:');
+            console.log('   remoteJid:', from);
+            console.log('   remoteJidAlt:', msg.key.remoteJidAlt);
+            console.log('   Selected sender:', sender);
         }
 
         if (!sender) {
@@ -67,15 +64,12 @@ function isOwnerMessage(msg, sock, CONFIG) {
             return false;
         }
 
-        // Normalize sender to standard JID format
+        // Normalize to standard format
         sender = normalizeJid(sender);
 
-        // Extract clean phone numbers for comparison
+        // Extract clean phone numbers
         const senderNumber = getCleanNumber(sender);
         const ownerNumber = getCleanNumber(CONFIG.ownerNumber);
-        
-        // Get bot number from sock.user.id
-        // Format: "1234567890:1@s.whatsapp.net" or "1234567890@s.whatsapp.net"
         const rawBotId = sock.user?.id || '';
         const botNumber = getCleanNumber(rawBotId);
 
@@ -86,10 +80,6 @@ function isOwnerMessage(msg, sock, CONFIG) {
         console.log('🔍 OWNER CHECK DEBUG:');
         console.log('  Chat Type:', isGroup ? 'GROUP' : 'DM');
         console.log('  Chat (from):', from);
-        console.log('  ');
-        console.log('  Raw Values:');
-        console.log('    msg.key.participant:', msg.key.participant || 'N/A');
-        console.log('    msg.key.participantPn:', msg.key.participantPn || 'N/A');
         console.log('  ');
         console.log('  Processed Values:');
         console.log('    Sender (final):', sender);
@@ -109,7 +99,7 @@ function isOwnerMessage(msg, sock, CONFIG) {
         const isOwnerExact = senderNumber && ownerNumber && (senderNumber === ownerNumber);
         const isBotExact = senderNumber && botNumber && (senderNumber === botNumber);
 
-        // Fallback: Last 10 digits match (handles country code variations)
+        // Fallback: Last 10 digits match
         let isOwnerFallback = false;
         let isBotFallback = false;
 
@@ -190,11 +180,14 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
-        // Extract sender info using helper function
-        const sender = getSender(msg);
+        // Extract sender using Alt fields for @lid support
+        const isGroup = from.endsWith('@g.us');
+        const sender = isGroup 
+            ? (msg.key.participantAlt || msg.key.participant || from)
+            : (msg.key.remoteJidAlt || from);
+
         if (!sender) return;
 
-        const isGroup = from.endsWith('@g.us');
         const userName = getUserName(msg);
 
         // ✅ CRITICAL: Check owner status FIRST
