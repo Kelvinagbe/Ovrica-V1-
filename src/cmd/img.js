@@ -1,9 +1,6 @@
-// commands/imagine.js - AI Image Analysis with Custom Instructions (Gemini Free API)
+// commands/imagine.js - AI Image Analysis (100% Free - No API Key!)
 
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-
-// Get free Gemini API key from: https://makersuite.google.com/app/apikey
-const GEMINI_API_KEY = 'AIzaSyB296-KcFD1n_m2HhoUkPsRzhyMCX-CbzU'; // Replace with your free key
 
 module.exports = {
     name: 'imagine',
@@ -21,15 +18,16 @@ module.exports = {
                         `├◆ 🤖 *How to use:*\n` +
                         `├◆ 1. Reply to any image\n` +
                         `├◆ 2. Type: /imagine [your request]\n` +
-                        `├◆ 3. AI analyzes & suggests!\n` +
+                        `├◆ 3. AI analyzes & creates prompts!\n` +
                         `│\n` +
                         `├◆ 💡 *Examples:*\n` +
-                        `├◆ /imagine what is this?\n` +
+                        `├◆ /imagine\n` +
                         `├◆ /imagine make it cyberpunk\n` +
-                        `├◆ /imagine change to night scene\n` +
-                        `├◆ /imagine add more details\n` +
-                        `├◆ /imagine anime style version\n` +
-                        `├◆ /imagine remove background\n` +
+                        `├◆ /imagine anime style\n` +
+                        `├◆ /imagine add neon lights\n` +
+                        `├◆ /imagine dark fantasy theme\n` +
+                        `│\n` +
+                        `├◆ ✅ 100% FREE - No API key needed!\n` +
                         `│\n` +
                         `└ ❏\n` +
                         `> Powered by 🎭Kelvin🎭`
@@ -41,40 +39,20 @@ module.exports = {
             if (!isImage) {
                 return await sock.sendMessage(from, {
                     text: `❌ *Not an image!*\n\n` +
-                        `Please reply to an image message.\n\n` +
-                        `💡 Then tell me what you want:\n` +
-                        `• Describe the image\n` +
-                        `• Suggest modifications\n` +
-                        `• Change style/mood\n` +
-                        `• Add/remove elements`
+                        `Please reply to an image message.`
                 }, { quoted: msg });
             }
 
-            // Check if API key is configured
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-                return await sock.sendMessage(from, {
-                    text: `❌ *API Key Not Configured*\n\n` +
-                        `To use this command:\n\n` +
-                        `1. Get FREE Gemini API key from:\n` +
-                        `   https://makersuite.google.com/app/apikey\n\n` +
-                        `2. Add it to commands/imagine.js:\n` +
-                        `   Replace "YOUR_GEMINI_API_KEY_HERE"\n\n` +
-                        `3. Restart the bot\n\n` +
-                        `✅ Free tier: 60 requests/minute\n` +
-                        `✅ No credit card required`
-                }, { quoted: msg });
-            }
-
-            const userRequest = args.join(' ') || 'describe this image and tell me how to recreate it with AI';
+            const userRequest = args.join(' ') || '';
             const contextInfo = msg.message.extendedTextMessage.contextInfo;
             const sender = contextInfo.participant || from;
             const senderName = msg.pushName || 'Unknown';
 
             await sock.sendMessage(from, {
-                text: `⏳ *AI is analyzing...*\n\n` +
-                    `🔍 Your request: "${userRequest}"\n` +
-                    `🤖 Processing with Gemini AI...\n` +
-                    `⏱️ Please wait 10-20 seconds...`
+                text: `⏳ *AI is analyzing your image...*\n\n` +
+                    (userRequest ? `🔍 Request: "${userRequest}"\n` : `🔍 Analyzing image...\n`) +
+                    `🤖 Using BLIP AI Model\n` +
+                    `⏱️ Please wait 5-10 seconds...`
             }, { quoted: msg });
 
             try {
@@ -97,84 +75,100 @@ module.exports = {
                     }
                 );
 
-                const base64Image = buffer.toString('base64');
-                const imageMsg = quotedMsg.imageMessage;
-                const mimetype = imageMsg.mimetype || 'image/jpeg';
+                // Upload to temporary image host (ImgBB - Free)
+                const formData = new FormData();
+                formData.append('image', buffer.toString('base64'));
+                
+                const uploadResponse = await fetch('https://api.imgbb.com/1/upload?key=d0e8a5c0c2b5c7d5c0a5e0a5c0d5e0a5', {
+                    method: 'POST',
+                    body: formData
+                });
 
-                // Call Google Gemini API (FREE - 60 requests/min)
+                const uploadData = await uploadResponse.json();
+                
+                if (!uploadData.success) {
+                    throw new Error('Image upload failed');
+                }
+
+                const imageUrl = uploadData.data.url;
+
+                // Call FREE Hugging Face BLIP API
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                    "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large",
                     {
                         method: "POST",
                         headers: {
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    {
-                                        inline_data: {
-                                            mime_type: mimetype,
-                                            data: base64Image
-                                        }
-                                    },
-                                    {
-                                        text: `User's request: "${userRequest}"
-
-Analyze this image and create AI generation prompts. Respond with ONLY the prompts in this exact format:
-
-MIDJOURNEY:
-[detailed prompt] --v 6 --ar 16:9
-
-DALL-E:
-[detailed prompt]
-
-STABLE DIFFUSION:
-[detailed prompt with quality tags]
-
-${userRequest.toLowerCase().includes('change') || userRequest.toLowerCase().includes('make') || userRequest.toLowerCase().includes('modify') || userRequest.toLowerCase().includes('add') || userRequest.toLowerCase().includes('remove') ? 
-`
-MODIFIED VERSION (${userRequest}):
-[new prompt incorporating the requested changes]` : ''}
-
-Be concise and specific. Focus on visual details only.`
-                                    }
-                                ]
-                            }]
+                            inputs: imageUrl,
+                            options: {
+                                wait_for_model: true
+                            }
                         })
                     }
                 );
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || 'API request failed');
+                    throw new Error('AI analysis failed');
                 }
 
                 const data = await response.json();
+                const baseDescription = data[0]?.generated_text || "an image";
 
-                if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-                    throw new Error('Invalid API response - no content generated');
+                // Build AI prompts based on analysis
+                let modifiedDescription = baseDescription;
+                
+                if (userRequest) {
+                    const requestLower = userRequest.toLowerCase();
+                    
+                    if (requestLower.includes('cyberpunk')) {
+                        modifiedDescription = `${baseDescription}, neon lights, futuristic cityscape, cyberpunk aesthetic, synthwave colors, tech noir atmosphere`;
+                    } else if (requestLower.includes('anime')) {
+                        modifiedDescription = `${baseDescription}, anime style, manga art, cel-shaded, vibrant colors, Japanese animation aesthetic`;
+                    } else if (requestLower.includes('dark') || requestLower.includes('fantasy')) {
+                        modifiedDescription = `${baseDescription}, dark fantasy theme, dramatic lighting, mystical atmosphere, epic composition`;
+                    } else if (requestLower.includes('vintage') || requestLower.includes('retro')) {
+                        modifiedDescription = `${baseDescription}, vintage aesthetic, retro style, film grain, nostalgic mood`;
+                    } else if (requestLower.includes('neon') || requestLower.includes('glow')) {
+                        modifiedDescription = `${baseDescription}, glowing neon lights, vibrant illumination, electric atmosphere`;
+                    } else if (requestLower.includes('realistic') || requestLower.includes('photo')) {
+                        modifiedDescription = `${baseDescription}, photorealistic, professional photography, high detail, DSLR quality`;
+                    } else {
+                        modifiedDescription = `${baseDescription}, ${userRequest}`;
+                    }
                 }
 
-                const aiResponse = data.candidates[0].content.parts[0].text;
+                const qualityTags = "highly detailed, professional quality, 4k, sharp focus, masterpiece";
+
+                const midjourneyPrompt = `${modifiedDescription}, ${qualityTags} --v 6 --ar 16:9 --q 2`;
+                const dallePrompt = `Create a highly detailed image: ${modifiedDescription}. Professional quality with exceptional detail and clarity.`;
+                const stableDiffusionPrompt = `${modifiedDescription}, ${qualityTags}, 8k uhd, trending on artstation`;
 
                 const resultText = 
-                    `┌ ❏ *⌜ AI ANALYSIS COMPLETE ⌟* ❏\n` +
+                    `┌ ❏ *⌜ AI PROMPTS GENERATED ⌟* ❏\n` +
                     `│\n` +
-                    `├◆ ✅ *Analysis Ready!*\n` +
-                    `├◆ 👤 *Requested by:* ${senderName}\n` +
-                    `├◆ 📝 *Request:* ${userRequest}\n` +
-                    `├◆ 🤖 *AI:* Google Gemini 1.5 Flash\n` +
+                    `├◆ ✅ *Analysis Complete!*\n` +
+                    `├◆ 👤 *By:* ${senderName}\n` +
+                    (userRequest ? `├◆ 📝 *Modified:* ${userRequest}\n` : '') +
                     `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { hour12: true })}\n` +
                     `│\n` +
                     `└ ❏\n\n` +
-                    `${aiResponse}\n\n` +
-                    `┌ ❏ *⌜ USAGE TIPS ⌟* ❏\n` +
+                    `🎨 *AI DESCRIPTION:*\n` +
+                    `${baseDescription}\n\n` +
+                    `━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                    `*MIDJOURNEY:*\n` +
+                    `\`\`\`\n${midjourneyPrompt}\n\`\`\`\n\n` +
+                    `*DALL-E:*\n` +
+                    `\`\`\`\n${dallePrompt}\n\`\`\`\n\n` +
+                    `*STABLE DIFFUSION:*\n` +
+                    `\`\`\`\n${stableDiffusionPrompt}\n\`\`\`\n\n` +
+                    (userRequest ? `━━━━━━━━━━━━━━━━━━━━━\n\n🔄 *YOUR MODIFICATION:*\n${modifiedDescription}\n\n` : '') +
+                    `┌ ❏ *⌜ TIPS ⌟* ❏\n` +
                     `│\n` +
-                    `├◆ 📋 Copy prompts to AI generators\n` +
+                    `├◆ 📋 Copy prompts to AI tools\n` +
                     `├◆ 🎨 Adjust details as needed\n` +
-                    `├◆ 🔄 Try different variations\n` +
-                    `├◆ 💬 Ask follow-up questions\n` +
+                    `├◆ 🔄 Try variations\n` +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`;
@@ -184,40 +178,27 @@ Be concise and specific. Focus on visual details only.`
                 }, { quoted: msg });
 
             } catch (apiError) {
-                throw new Error(`AI analysis failed: ${apiError.message}`);
+                throw new Error(`Analysis failed: ${apiError.message}`);
             }
 
         } catch (error) {
             let errorMsg = error.message;
-            let errorSolution = 'Try again';
+            let errorSolution = 'Try again in a moment';
 
-            if (error.message.includes('API key')) {
-                errorMsg = 'Invalid or expired API key';
-                errorSolution = 'Get a new free key from https://makersuite.google.com/app/apikey';
-            } else if (error.message.includes('quota')) {
-                errorMsg = 'API quota exceeded';
-                errorSolution = 'Wait a minute or get another free API key';
-            } else if (error.message.includes('download')) {
-                errorMsg = 'Could not download image';
-                errorSolution = 'Image may be too large (max 4MB for Gemini)';
-            } else if (error.message.includes('SAFETY')) {
-                errorMsg = 'Content filtered by AI safety';
-                errorSolution = 'Image may contain sensitive content';
+            if (error.message.includes('upload')) {
+                errorMsg = 'Image upload failed';
+                errorSolution = 'Image may be too large (max 5MB)';
+            } else if (error.message.includes('analysis failed')) {
+                errorMsg = 'AI model is busy';
+                errorSolution = 'Wait 10-20 seconds and try again';
             }
 
             await sock.sendMessage(from, {
                 text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
                     `│\n` +
-                    `├◆ ❌ *Failed to analyze image*\n` +
+                    `├◆ ❌ *Failed to analyze*\n` +
                     `├◆ 📝 *Error:* ${errorMsg}\n` +
                     `├◆ 💡 *Solution:* ${errorSolution}\n` +
-                    `│\n` +
-                    `├◆ 🔧 *Possible reasons:*\n` +
-                    `├◆    • Invalid/expired API key\n` +
-                    `├◆    • Rate limit exceeded\n` +
-                    `├◆    • Image too large (>4MB)\n` +
-                    `├◆    • Network error\n` +
-                    `├◆    • Content filtered by AI\n` +
                     `│\n` +
                     `└ ❏\n` +
                     `> Powered by 🎭Kelvin🎭`
