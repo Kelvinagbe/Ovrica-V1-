@@ -1,4 +1,4 @@
-const { getEnergy, userExists, createUser } = require('../utils/energy-system');
+const { getEnergy, userExists, createUser } = require('@/utils/energy-system');
 
 module.exports = {
     name: 'energy',
