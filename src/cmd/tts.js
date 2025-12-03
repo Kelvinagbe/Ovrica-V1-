@@ -1,6 +1,3 @@
-// commands/tts.js - Text to Speech (Same format as song.js)
-// Install: npm install axios gtts
-
 const axios = require('axios');
 
 const fs = require('fs');
@@ -28,38 +25,62 @@ module.exports = {
                         `├◆ de = German\n` +
                         `├◆ it = Italian\n` +
                         `├◆ ja = Japanese\n` +
-                        `├◆ ko = Korean\n│\n` +
+                        `├◆ ko = Korean\n` +
+                        `├◆ pcm = Nigerian Pidgin\n` +
+                        `├◆ pidgin = Nigerian Pidgin\n│\n` +
                         `└ ❏\n` +
                         `┌ ❏ ◆ *⌜EXAMPLES⌟* ◆\n│\n` +
                         `├◆ /tts en Hello world\n` +
                         `├◆ /tts es Hola mundo\n` +
-                        `├◆ /tts ja こんにちは\n│\n` +
+                        `├◆ /tts pcm How you dey\n` +
+                        `├◆ /tts pidgin Wetin dey happen\n│\n` +
                         `└ ❏\n> Powered by 🎭Kelvin🎭`
                 }, { quoted: msg });
             }
 
+            // Language mapping (maps pidgin variants to English)
+            const languageMap = {
+                'en': 'en',
+                'es': 'es',
+                'fr': 'fr',
+                'de': 'de',
+                'it': 'it',
+                'ja': 'ja',
+                'ko': 'ko',
+                'pcm': 'en',      // Nigerian Pidgin -> English voice
+                'pidgin': 'en',   // Alternative pidgin code
+                'naija': 'en',    // Nigerian slang
+                'ng': 'en'        // Nigeria code
+            };
+
             let language = 'en';
             let text;
+            let displayLanguage = 'English';
 
             // Check if first arg is a language code
-            if (args[0].length === 2) {
-                language = args[0];
+            const firstArg = args[0].toLowerCase();
+            if (firstArg.length <= 6 && languageMap[firstArg]) {
+                language = languageMap[firstArg];
+                displayLanguage = firstArg === 'pcm' || firstArg === 'pidgin' || firstArg === 'naija' 
+                    ? 'Nigerian Pidgin' 
+                    : firstArg.toUpperCase();
                 text = args.slice(1).join(' ');
             } else {
                 text = args.join(' ');
+                displayLanguage = 'English';
             }
 
             if (!text || text.trim() === '') {
                 return await sock.sendMessage(from, {
-                    text: `❌ *No text provided!*\n\n📝 Usage: /tts [language] [text]`
+                    text: `❌ *No text provided!*\n\n📝 Usage: /tts [language] [text]\n💡 Example: /tts pcm How you dey`
                 }, { quoted: msg });
             }
 
             const processingMsg = await sock.sendMessage(from, {
-                text: `🔊 *Generating speech...*\n\n📝 Text: ${text}\n🌍 Language: ${language}\n\n⏳ Please wait...`
+                text: `🔊 *Generating speech...*\n\n📝 Text: ${text}\n🌍 Language: ${displayLanguage}\n\n⏳ Please wait...`
             }, { quoted: msg });
 
-            await generateSpeech(sock, from, msg, text, language, processingMsg);
+            await generateSpeech(sock, from, msg, text, language, displayLanguage, processingMsg);
 
         } catch (error) {
             console.error('❌ TTS error:', error);
@@ -67,14 +88,14 @@ module.exports = {
                 text: `┌ ❏ *⌜ ERROR ⌟* ❏\n│\n` +
                     `├◆ ❌ *TTS failed*\n` +
                     `├◆ 📝 *Error:* ${error.message}\n│\n` +
-                    `├◆ 💡 Try again\n│\n` +
+                    `├◆ 💡 Try again with shorter text\n│\n` +
                     `└ ❏\n> Powered by 🎭Kelvin🎭`
             }, { quoted: msg });
         }
     }
 };
 
-async function generateSpeech(sock, from, msg, text, language, processingMsg) {
+async function generateSpeech(sock, from, msg, text, language, displayLanguage, processingMsg) {
     const tempDir = path.join(__dirname, '../temp');
     if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
@@ -84,10 +105,10 @@ async function generateSpeech(sock, from, msg, text, language, processingMsg) {
 
     try {
         // Method 1: Using gtts library (Most Reliable)
-        const tts = new gtts(text, language);
-        
+        const ttsInstance = new gtts(text, language);
+
         await new Promise((resolve, reject) => {
-            tts.save(audioPath, (err) => {
+            ttsInstance.save(audioPath, (err) => {
                 if (err) reject(err);
                 else resolve();
             });
@@ -110,7 +131,7 @@ async function generateSpeech(sock, from, msg, text, language, processingMsg) {
 
         // Update processing message
         await sock.sendMessage(from, {
-            text: `✅ *Speech generated!*\n\n📝 Text: ${text}\n🌍 Language: ${language}\n📦 Size: ${fileSizeMB} MB`,
+            text: `✅ *Speech generated!*\n\n📝 Text: ${text}\n🌍 Language: ${displayLanguage}\n📦 Size: ${fileSizeMB} MB\n\n${displayLanguage === 'Nigerian Pidgin' ? '💡 *Note:* Using English voice for Pidgin text' : ''}`,
             edit: processingMsg.key
         });
 
@@ -128,7 +149,7 @@ async function generateSpeech(sock, from, msg, text, language, processingMsg) {
         // Fallback: Try Google TTS API
         try {
             const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${language}&q=${encodeURIComponent(text)}`;
-            
+
             const response = await axios.get(audioUrl, {
                 responseType: 'arraybuffer',
                 timeout: 30000,
@@ -144,7 +165,7 @@ async function generateSpeech(sock, from, msg, text, language, processingMsg) {
             });
 
             await sock.sendMessage(from, {
-                text: `✅ *Speech generated!*\n\n📝 Text: ${text}\n🌍 Language: ${language}\n🔧 Method: Google TTS`,
+                text: `✅ *Speech generated!*\n\n📝 Text: ${text}\n🌍 Language: ${displayLanguage}\n🔧 Method: Google TTS Fallback\n\n${displayLanguage === 'Nigerian Pidgin' ? '💡 *Note:* Using English voice for Pidgin text' : ''}`,
                 edit: processingMsg.key
             });
 
