@@ -1,6 +1,6 @@
 // commands/autoreact.js - Toggle automatic status reactions
 
-const statusListener = require('../statusListener');
+const statusListener = require('@/statusListener');
 
 module.exports = {
     name: 'autoreact',
