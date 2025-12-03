@@ -6,8 +6,20 @@ const path = require('path');
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const yts = require('yt-search');
 
-// Initialize yt-dlp
-const ytDlpWrap = new YTDlpWrap();
+// Auto-download yt-dlp binary if not exists
+let ytDlpWrap;
+
+async function initYtDlp() {
+    const ytDlpPath = path.join(__dirname, '../temp/yt-dlp');
+    
+    if (!fs.existsSync(ytDlpPath)) {
+        console.log('📥 Downloading yt-dlp binary...');
+        await YTDlpWrap.downloadFromGithub(ytDlpPath);
+        console.log('✅ yt-dlp downloaded!');
+    }
+    
+    ytDlpWrap = new YTDlpWrap(ytDlpPath);
+}
 
 module.exports = {
     name: 'song',
@@ -16,6 +28,11 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
+            // Initialize yt-dlp on first use
+            if (!ytDlpWrap) {
+                await initYtDlp();
+            }
+
             if (!args[0]) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ SONG DOWNLOADER ⌟* ❏\n│\n` +
