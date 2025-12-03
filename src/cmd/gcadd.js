@@ -1,4 +1,5 @@
-const { isBotAdmin } = require('../utils/helpers/groupHelpers');
+require('module-alias/register');
+const { isBotAdmin } = require('@/utils/helpers/groupHelpers');
 
 module.exports = {
   name: 'gcadd',
