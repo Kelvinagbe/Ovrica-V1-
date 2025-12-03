@@ -32,7 +32,7 @@ module.exports = {
 
         // Update config file
 
-        const configPath = path.join(__dirname, '../config.js');
+        const configPath = path.join(__dirname, '@/config.js');
 
         let configContent = fs.readFileSync(configPath, 'utf8');
 
