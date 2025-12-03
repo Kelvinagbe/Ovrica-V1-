@@ -76,63 +76,58 @@ module.exports = {
                     }
                 );
 
-                const base64Image = buffer.toString('base64');
-
-                // Use Hugging Face BLIP model for image captioning
-                const captionResponse = await fetch(
-                    "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            inputs: base64Image,
-                            options: {
-                                wait_for_model: true
-                            }
-                        })
-                    }
-                );
-
-                if (!captionResponse.ok) {
-                    const errorText = await captionResponse.text();
-                    if (errorText.includes('loading')) {
-                        throw new Error('MODEL_LOADING');
-                    }
-                    throw new Error('Image analysis failed');
-                }
-
-                const captionData = await captionResponse.json();
-                const baseDescription = captionData[0]?.generated_text || "an image";
-
-                // Try to get additional tags from image classification
-                const classifyResponse = await fetch(
-                    "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            inputs: base64Image,
-                            options: {
-                                wait_for_model: true
-                            }
-                        })
-                    }
-                );
-
+                // Try multiple free APIs with fallback
+                let baseDescription = "an image";
                 let tags = [];
                 let confidence = 'medium';
-                
-                if (classifyResponse.ok) {
-                    const classifyData = await classifyResponse.json();
-                    if (Array.isArray(classifyData)) {
-                        tags = classifyData.slice(0, 5).map(item => item.label);
-                        confidence = classifyData[0]?.score > 0.7 ? 'high' : 'medium';
+
+                // Try API 1: nlpconnect/vit-gpt2 (faster, more reliable)
+                try {
+                    const res = await fetch(
+                        "https://api-inference.huggingface.co/models/nlpconnect/vit-gpt2-image-captioning",
+                        {
+                            method: "POST",
+                            body: buffer
+                        }
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        baseDescription = data[0]?.generated_text || baseDescription;
                     }
+                } catch (e) {
+                    // Try API 2: BLIP base (fallback)
+                    try {
+                        const res = await fetch(
+                            "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
+                            {
+                                method: "POST",
+                                body: buffer
+                            }
+                        );
+                        if (res.ok) {
+                            const data = await res.json();
+                            baseDescription = data[0]?.generated_text || baseDescription;
+                        }
+                    } catch (e2) {}
                 }
+
+                // Get tags (optional, don't fail if unavailable)
+                try {
+                    const res = await fetch(
+                        "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
+                        {
+                            method: "POST",
+                            body: buffer
+                        }
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data)) {
+                            tags = data.slice(0, 5).map(item => item.label);
+                            confidence = data[0]?.score > 0.7 ? 'high' : 'medium';
+                        }
+                    }
+                } catch (e) {}
 
                 // Enhance the prompt
                 const artStyle = this.detectArtStyle(baseDescription, tags);
