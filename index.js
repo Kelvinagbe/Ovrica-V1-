@@ -1,3 +1,4 @@
+// index.js - PERFORMANCE OPTIMIZED
 require('module-alias/register');
 const {
     default: makeWASocket,
@@ -19,11 +20,7 @@ const { handleMessage } = require('@/utils/message-handler');
 const { handleConnection } = require('@/utils/connection-handler');
 const statusListener = require('@/statusListener');
 const antilink = require('@/src/cmd/antilink');
-
-// ✅ IMPORT GROUP EVENTS HANDLER
 const { handleGroupParticipants } = require('@/utils/handlers/groupevent');
-
-// ✅ IMPORT ENERGY SYSTEM
 const { initEnergyDB, shutdown } = require('@/utils/energy-system');
 
 // ============================================
@@ -33,8 +30,14 @@ const messageQueue = new Map();
 const statusViewed = new Set();
 const welcomedUsers = new Set();
 
-// Export each individually for proper destructuring
 module.exports = { messageQueue, statusViewed, welcomedUsers };
+
+// ============================================
+// PERFORMANCE OPTIMIZATIONS
+// ============================================
+// Message throttling to prevent overload
+const MESSAGE_THROTTLE = 100; // ms between messages
+let lastMessageTime = 0;
 
 async function connectToWhatsApp() {
     try {
@@ -51,22 +54,26 @@ async function connectToWhatsApp() {
             logger: pino({ level: 'silent' }),
             browser: Browsers.ubuntu('Chrome'),
             markOnlineOnConnect: CONFIG.alwaysOnline,
+            
+            // ✅ OPTIMIZED getMessage
             getMessage: async (key) => {
-                try {
-                    return messageQueue.has(key.id) 
-                        ? messageQueue.get(key.id).message 
-                        : { conversation: '' };
-                } catch { 
-                    return { conversation: '' }; 
-                }
+                const cached = messageQueue.get(key.id);
+                return cached?.message || { conversation: '' };
             },
+
+            // ✅ PERFORMANCE TUNING
             syncFullHistory: false,
             retryRequestDelayMs: 250,
-            maxMsgRetryCount: 3,
-            defaultQueryTimeoutMs: 60000,
-            connectTimeoutMs: 90000,
-            keepAliveIntervalMs: 30000,
-            generateHighQualityLinkPreview: false
+            maxMsgRetryCount: 2, // Reduced from 3
+            defaultQueryTimeoutMs: 45000, // Reduced from 60s
+            connectTimeoutMs: 60000, // Reduced from 90s
+            keepAliveIntervalMs: 25000, // Reduced from 30s
+            generateHighQualityLinkPreview: false,
+            
+            // ✅ ADDITIONAL PERFORMANCE OPTIONS
+            shouldIgnoreJid: () => false,
+            shouldSyncHistoryMessage: () => false,
+            cachedGroupMetadata: async () => null
         });
 
         // Save credentials on update
@@ -78,94 +85,125 @@ async function connectToWhatsApp() {
 
             // Initialize status listener when connected
             if (update.connection === 'open') {
-                try {
-                    statusListener.initializeStatusListener(sock);
-                    console.log('👁️ Status listener initialized and ready');
-                } catch (error) {
-                    console.error('❌ Failed to initialize status listener:', error.message);
-                }
+                // Lazy initialization (non-blocking)
+                setImmediate(() => {
+                    try {
+                        statusListener.initializeStatusListener(sock);
+                        console.log('👁️ Status listener initialized');
+                    } catch (error) {
+                        if (CONFIG.logErrors) {
+                            console.error('❌ Status listener error:', error.message);
+                        }
+                    }
+                });
             }
         });
 
         // ============================================
-        // ✅ HANDLE GROUP PARTICIPANTS UPDATE
+        // ✅ OPTIMIZED GROUP EVENTS
         // ============================================
-        sock.ev.on('group-participants.update', async (update) => {
-            console.log('📢 Group participants event triggered!');
-            await handleGroupParticipants(sock, update);
+        sock.ev.on('group-participants.update', (update) => {
+            // Non-blocking execution
+            setImmediate(() => {
+                handleGroupParticipants(sock, update).catch(err => {
+                    if (CONFIG.logErrors) {
+                        console.error('❌ Group event error:', err.message);
+                    }
+                });
+            });
         });
 
         // ============================================
-        // ✅ HANDLE INCOMING MESSAGES WITH ANTILINK
+        // ✅ ULTRA-FAST MESSAGE HANDLING
         // ============================================
         sock.ev.on('messages.upsert', async ({ messages }) => {
-            const msg = messages[0];
-            if (!msg.message) return;
-
-            // ✅ CHECK ANTILINK FIRST (before command processing)
-            try {
-                await antilink.handleMessage(sock, msg);
-            } catch (error) {
-                if (CONFIG.logErrors) {
-                    console.error('❌ Antilink error:', error.message);
-                }
+            const now = Date.now();
+            
+            // Throttle message processing
+            if (now - lastMessageTime < MESSAGE_THROTTLE) {
+                await new Promise(r => setTimeout(r, MESSAGE_THROTTLE));
             }
+            lastMessageTime = now;
 
-            // Then handle normal messages/commands
-            handleMessage(messages, sock, CONFIG, commands);
+            const msg = messages[0];
+            if (!msg?.message) return;
+
+            // Fast path: Run antilink and message handling in parallel
+            Promise.all([
+                antilink.handleMessage(sock, msg).catch(() => {}),
+                handleMessage(messages, sock, CONFIG, commands)
+            ]).catch(error => {
+                if (CONFIG.logErrors) {
+                    console.error('❌ Processing error:', error.message);
+                }
+            });
         });
 
     } catch (error) {
         console.error('❌ Connection error:', error.message);
-        console.log('⏳ Waiting 10 seconds before reconnecting...\n');
+        console.log('⏳ Reconnecting in 10s...\n');
         setTimeout(connectToWhatsApp, 10000);
     }
 }
 
 // ============================================
-// ERROR HANDLERS
+// OPTIMIZED ERROR HANDLERS
 // ============================================
+const errorLog = new Set(); // Prevent duplicate error logs
+const ERROR_LOG_COOLDOWN = 60000; // 1 minute
+
+function logError(type, error) {
+    if (!CONFIG.logErrors) return;
+    
+    const errorKey = `${type}-${error.message}`;
+    if (errorLog.has(errorKey)) return;
+    
+    console.error(`⚠️  ${type}:`, error.message);
+    errorLog.add(errorKey);
+    
+    // Clean error log periodically
+    setTimeout(() => errorLog.delete(errorKey), ERROR_LOG_COOLDOWN);
+}
+
 process.on('uncaughtException', (error) => {
-    if (CONFIG.logErrors) {
-        console.error('⚠️  Uncaught Exception:', error.message);
-        if (error.stack) {
-            console.error('Stack:', error.stack.split('\n').slice(0, 3).join('\n'));
-        }
-    }
+    logError('Uncaught Exception', error);
 });
 
 process.on('unhandledRejection', (error) => {
-    if (CONFIG.logErrors) {
-        console.error('⚠️  Unhandled Rejection:', error.message);
-    }
-});
-
-// ✅ GRACEFUL SHUTDOWN WITH ENERGY SAVE
-process.on('SIGINT', async () => {
-    console.log('\n👋 Shutting down gracefully...');
-    await shutdown(); // Save pending energy writes
-    console.log('💾 Session saved');
-    console.log('✅ Goodbye!');
-    process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-    console.log('\n👋 Received SIGTERM signal');
-    await shutdown(); // Save pending energy writes
-    console.log('💾 Session saved');
-    console.log('✅ Goodbye!');
-    process.exit(0);
+    logError('Unhandled Rejection', error);
 });
 
 // ============================================
-// STARTUP WITH ENERGY SYSTEM
+// GRACEFUL SHUTDOWN
+// ============================================
+async function gracefulShutdown(signal) {
+    console.log(`\n👋 Received ${signal} - shutting down...`);
+    
+    try {
+        await shutdown(); // Save energy system
+        console.log('💾 Data saved');
+    } catch (error) {
+        console.error('❌ Shutdown error:', error.message);
+    }
+    
+    console.log('✅ Goodbye!');
+    process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// ============================================
+// OPTIMIZED STARTUP
 // ============================================
 async function startBot() {
-    // Initialize bot utilities
-    initializeBot();
-
-    // ✅ Initialize energy system
-    await initEnergyDB();
+    console.time('⚡ Bot startup time');
+    
+    // Initialize in parallel
+    await Promise.all([
+        initializeBot(),
+        initEnergyDB()
+    ]);
 
     console.log('📋 Bot Configuration:');
     console.log(`   • Name: ${CONFIG.botName}`);
@@ -180,7 +218,7 @@ async function startBot() {
     console.log(`   • Log Errors: ${CONFIG.logErrors ? '✓' : '✗'}`);
     console.log(`   • Anti-Link: ✓ Enabled`);
     console.log(`   • Energy System: ✓ Enabled`);
-    console.log(`   • Welcome/Goodbye: ✓ Enabled\n`); // ✅ ADDED
+    console.log(`   • Welcome/Goodbye: ✓ Enabled\n`);
 
     const authPath = path.join(__dirname, 'auth_info_baileys');
     const credsPath = path.join(authPath, 'creds.json');
@@ -191,9 +229,11 @@ async function startBot() {
         console.log('🆕 No session found - starting fresh...\n');
     }
 
-    // Start WhatsApp connection
+    console.timeEnd('⚡ Bot startup time');
+    
+    // Start connection
     connectToWhatsApp();
 }
 
-// ✅ START BOT WITH ENERGY SYSTEM
+// ✅ START BOT
 startBot();
