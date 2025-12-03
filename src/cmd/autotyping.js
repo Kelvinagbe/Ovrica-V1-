@@ -32,7 +32,7 @@ module.exports = {
 
         // Update config file
 
-        const configPath = path.join(__dirname, '@/config.js');
+        const configPath = path.join(__dirname, '../../config.js');
 
         let configContent = fs.readFileSync(configPath, 'utf8');
 
@@ -50,9 +50,9 @@ module.exports = {
 
         // Update runtime config
 
-        delete require.cache[require.resolve('@/config')];
+        delete require.cache[require.resolve('../../config')];
 
-        const CONFIG = require('@/config');
+        const CONFIG = require('../..config');
 
         CONFIG.autoTyping = status;
 
