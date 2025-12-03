@@ -1,5 +1,5 @@
-// commands/song.js - Ultimate Working Solution
-// Install: npm install axios yt-search cheerio
+// commands/song.js - Most Reliable Solution with Premium APIs
+// Install: npm install axios yt-search
 
 const fs = require('fs');
 const path = require('path');
@@ -122,178 +122,167 @@ async function downloadMedia(sock, from, msg, video, type) {
     }, { quoted: msg });
 
     try {
-        // Working downloaders with API rotation
-        const downloaders = [
-            // Downloader 1: SaveFrom.net alternative
+        // Premium working APIs (updated Dec 2024)
+        const apis = [
+            // API 1: Widipe API (Most Reliable)
             {
-                name: 'SaveFrom',
-                download: async () => {
-                    const apiUrl = `https://cdn49.savetube.me/info?url=${encodeURIComponent(video.url)}`;
-                    const response = await axios.get(apiUrl, {
+                name: 'Widipe',
+                fetch: async () => {
+                    const url = `https://widipe.com/download/ytdl?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { 
                         timeout: 60000,
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                            'Accept': 'application/json'
-                        }
+                        headers: { 'User-Agent': 'WhatsApp Bot' }
                     });
-                    
-                    const data = response.data;
-                    if (!data?.data?.dlink) throw new Error('No download link');
-                    
-                    const formats = data.data.dlink;
-                    let downloadUrl;
                     
                     if (type === 'audio') {
-                        downloadUrl = formats['140']?.[0]?.url || formats['139']?.[0]?.url;
+                        return response.data?.result?.mp3 || response.data?.result?.audio?.url;
                     } else {
-                        downloadUrl = formats['136']?.[0]?.url || formats['18']?.[0]?.url;
+                        return response.data?.result?.mp4 || response.data?.result?.video?.url;
                     }
-                    
-                    if (!downloadUrl) throw new Error('Format not found');
-                    return downloadUrl;
                 }
             },
             
-            // Downloader 2: Y2Mate style
+            // API 2: Gifted API
             {
-                name: 'Y2Mate',
-                download: async () => {
-                    const apiUrl = `https://api.cobalt.tools/api/json`;
-                    const response = await axios.post(apiUrl, {
-                        url: video.url,
-                        vCodec: type === 'video' ? 'h264' : undefined,
-                        vQuality: type === 'video' ? '480' : undefined,
-                        aFormat: type === 'audio' ? 'mp3' : undefined,
-                        isAudioOnly: type === 'audio'
-                    }, {
-                        timeout: 60000,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'User-Agent': 'Mozilla/5.0'
-                        }
-                    });
-                    
-                    if (response.data?.url) return response.data.url;
-                    throw new Error('No download URL');
+                name: 'Gifted',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytmp3' : 'ytmp4';
+                    const url = `https://api.giftedtech.my.id/api/download/${endpoint}?apikey=gifted&url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.result?.download_url;
                 }
             },
             
-            // Downloader 3: YT5s
+            // API 3: Ryzen API
             {
-                name: 'YT5s',
-                download: async () => {
-                    const apiUrl = `https://yt5s.biz/api/ajaxSearch`;
-                    
-                    // Get video info first
-                    const infoResponse = await axios.post(apiUrl, 
-                        new URLSearchParams({
-                            q: video.url,
-                            vt: 'mp3'
-                        }), {
-                        timeout: 60000,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'User-Agent': 'Mozilla/5.0'
-                        }
-                    });
-                    
-                    const vid = infoResponse.data?.vid;
-                    if (!vid) throw new Error('Video ID not found');
-                    
-                    // Get download link
-                    const convertUrl = `https://yt5s.biz/api/ajaxConvert`;
-                    const convertResponse = await axios.post(convertUrl,
-                        new URLSearchParams({
-                            vid: vid,
-                            k: infoResponse.data?.links?.[type === 'audio' ? 'mp3' : 'mp4']?.['mp3128']?.k || infoResponse.data?.links?.[type === 'audio' ? 'mp3' : 'mp4']?.['360']?.k
-                        }), {
-                        timeout: 60000,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        }
-                    });
-                    
-                    if (convertResponse.data?.dlink) return convertResponse.data.dlink;
-                    throw new Error('Conversion failed');
+                name: 'Ryzen',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytmp3' : 'ytmp4';
+                    const url = `https://api.ryzendesu.vip/api/downloader/${endpoint}?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.url;
                 }
             },
-
-            // Downloader 4: Direct extraction
+            
+            // API 4: Bk9 API
             {
-                name: 'Direct',
-                download: async () => {
-                    const apiUrl = `https://www.yt1s.com/api/ajaxSearch/index`;
-                    const response = await axios.post(apiUrl,
-                        new URLSearchParams({
-                            q: video.url,
-                            vt: type === 'audio' ? 'mp3' : 'mp4'
-                        }), {
-                        timeout: 60000,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'User-Agent': 'Mozilla/5.0'
-                        }
-                    });
+                name: 'Bk9',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytmp3' : 'ytmp4';
+                    const url = `https://api.bk9.site/api/${endpoint}?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.BK9?.downloadUrl;
+                }
+            },
+            
+            // API 5: Zenith API
+            {
+                name: 'Zenith',
+                fetch: async () => {
+                    const url = `https://api-zenith.koyeb.app/api/download/ytmp${type === 'audio' ? '3' : '4'}?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.result?.download;
+                }
+            },
+            
+            // API 6: Siputzx API
+            {
+                name: 'Siputzx',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytmp3' : 'ytmp4';
+                    const url = `https://api.siputzx.my.id/api/d/${endpoint}?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.data?.dl;
+                }
+            },
+            
+            // API 7: BTCh API
+            {
+                name: 'BTCh',
+                fetch: async () => {
+                    const url = `https://btch.us.kg/download/ytdl?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
                     
-                    // Extract download link from response
-                    const links = response.data?.links?.[type === 'audio' ? 'mp3' : 'mp4'];
-                    if (!links) throw new Error('No links found');
-                    
-                    // Get first available quality
-                    const firstKey = Object.keys(links)[0];
-                    const k = links[firstKey]?.k;
-                    
-                    if (!k) throw new Error('No key found');
-                    
-                    // Convert
-                    const convertUrl = `https://www.yt1s.com/api/ajaxConvert/convert`;
-                    const convertResponse = await axios.post(convertUrl,
-                        new URLSearchParams({
-                            vid: response.data.vid,
-                            k: k
-                        }), {
-                        timeout: 60000
-                    });
-                    
-                    if (convertResponse.data?.dlink) return convertResponse.data.dlink;
-                    throw new Error('No download link');
+                    if (type === 'audio') {
+                        return response.data?.audio?.url || response.data?.mp3;
+                    } else {
+                        return response.data?.video?.url || response.data?.mp4;
+                    }
+                }
+            },
+            
+            // API 8: Shannz API
+            {
+                name: 'Shannz',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytmp3' : 'ytmp4';
+                    const url = `https://api.shannmoderz.xyz/downloader/${endpoint}?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.result?.download;
+                }
+            },
+            
+            // API 9: Nyxs API
+            {
+                name: 'Nyxs',
+                fetch: async () => {
+                    const url = `https://api.nyxs.pw/dl/yt-direct?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.result?.urlAudio || response.data?.result?.urlVideo;
+                }
+            },
+            
+            // API 10: LolHuman API (requires key)
+            {
+                name: 'LolHuman',
+                fetch: async () => {
+                    const endpoint = type === 'audio' ? 'ytaudio2' : 'ytvideo2';
+                    const url = `https://api.lolhuman.xyz/api/${endpoint}?apikey=GataDios&url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(url, { timeout: 60000 });
+                    return response.data?.result?.link;
                 }
             }
         ];
 
         let downloadUrl = null;
-        let successDownloader = null;
+        let successAPI = null;
+        let lastError = null;
 
-        // Try each downloader
-        for (const downloader of downloaders) {
+        // Try each API sequentially
+        for (const api of apis) {
             try {
-                console.log(`🔄 Trying ${downloader.name}...`);
-                downloadUrl = await downloader.download();
+                console.log(`🔄 Trying ${api.name} API...`);
+                downloadUrl = await api.fetch();
                 
-                if (downloadUrl) {
-                    console.log(`✅ Success with ${downloader.name}`);
-                    successDownloader = downloader.name;
+                if (downloadUrl && downloadUrl.startsWith('http')) {
+                    console.log(`✅ Got URL from ${api.name}`);
+                    successAPI = api.name;
                     break;
                 }
             } catch (error) {
-                console.log(`❌ ${downloader.name} failed:`, error.message);
+                lastError = error;
+                console.log(`❌ ${api.name} failed:`, error.message);
             }
+            
+            // Small delay between attempts
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         if (!downloadUrl) {
-            throw new Error('All download services failed. YouTube may be blocking requests.');
+            throw new Error('All APIs failed. Please try again in a few minutes or try a different song.');
         }
 
-        // Download file
-        console.log('📥 Downloading from:', downloadUrl);
+        // Download the file
+        console.log('📥 Downloading file from:', successAPI);
         const fileResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
-            timeout: 120000,
-            maxContentLength: 100 * 1024 * 1024,
+            timeout: 180000, // 3 minutes for large files
+            maxContentLength: 100 * 1024 * 1024, // 100MB
+            maxBodyLength: 100 * 1024 * 1024,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://www.youtube.com/'
+                'Referer': 'https://www.youtube.com/',
+                'Accept': '*/*'
             }
         });
 
@@ -302,7 +291,11 @@ async function downloadMedia(sock, from, msg, video, type) {
 
         console.log(`✅ Downloaded: ${fileSizeMB}MB`);
 
-        // Size check
+        // Size validation
+        if (fileBuffer.length < 1000) {
+            throw new Error('Downloaded file is too small (corrupted)');
+        }
+
         if (fileBuffer.length > 100 * 1024 * 1024) {
             return await sock.sendMessage(from, {
                 text: `❌ *File too large!*\n\n📦 Size: ${fileSizeMB} MB\n⚠️ Maximum: 100 MB`,
@@ -310,7 +303,7 @@ async function downloadMedia(sock, from, msg, video, type) {
             });
         }
 
-        // Send file
+        // Send the file
         if (type === 'audio') {
             await sock.sendMessage(from, {
                 audio: fileBuffer,
@@ -344,7 +337,7 @@ async function downloadMedia(sock, from, msg, video, type) {
             text: `✅ *${type === 'audio' ? 'Audio' : 'Video'} sent!*\n\n` +
                 `🎵 ${video.title}\n` +
                 `📦 Size: ${fileSizeMB} MB\n` +
-                `🔧 Service: ${successDownloader}`,
+                `🔧 API: ${successAPI}`,
             edit: processingMsg.key
         });
 
@@ -352,17 +345,20 @@ async function downloadMedia(sock, from, msg, video, type) {
         console.error('❌ Download error:', error);
 
         let errorMsg = error.message;
-        let errorSolution = 'Try again or use a different song';
+        let errorSolution = 'Try again in a few minutes or try a different song';
 
         if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-            errorMsg = 'Download timeout';
-            errorSolution = 'Song may be too long, try a shorter one';
+            errorMsg = 'Download timeout - file may be too large';
+            errorSolution = 'Try a shorter song (under 5 minutes)';
         } else if (error.response?.status === 404) {
-            errorMsg = 'File not found';
+            errorMsg = 'Video not found or unavailable';
             errorSolution = 'Try a different song';
-        } else if (error.message.includes('bot')) {
-            errorMsg = 'Service temporarily unavailable';
-            errorSolution = 'Try again in a few minutes';
+        } else if (error.message.includes('corrupted')) {
+            errorMsg = 'Downloaded file is corrupted';
+            errorSolution = 'Try again or use a different song';
+        } else if (error.message.includes('large')) {
+            errorMsg = 'File size exceeds limit';
+            errorSolution = 'Try a shorter song';
         }
 
         await sock.sendMessage(from, {
