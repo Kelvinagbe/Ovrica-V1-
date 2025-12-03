@@ -76,7 +76,7 @@ module.exports = {
 
         
 
-        const text = require('../tmp/templates').design.buildSimple('SETTING UPDATED', sections);
+        const text = require('../HTML/templates').design.buildSimple('SETTING UPDATED', sections);
 
         await sendWithTyping(sock, from, { text });
 
