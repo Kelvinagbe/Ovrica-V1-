@@ -75,37 +75,15 @@ module.exports = {
                     }
                 );
 
-                // Upload to temporary image host (ImgBB - Free)
-                const formData = new FormData();
-                formData.append('image', buffer.toString('base64'));
-                
-                const uploadResponse = await fetch('https://api.imgbb.com/1/upload?key=d0e8a5c0c2b5c7d5c0a5e0a5c0d5e0a5', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const uploadData = await uploadResponse.json();
-                
-                if (!uploadData.success) {
-                    throw new Error('Image upload failed');
-                }
-
-                const imageUrl = uploadData.data.url;
-
-                // Call FREE Hugging Face BLIP API
+                // Call FREE Hugging Face BLIP API (send image directly as binary)
                 const response = await fetch(
                     "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large",
                     {
                         method: "POST",
                         headers: {
-                            "Content-Type": "application/json",
+                            "Content-Type": "application/octet-stream",
                         },
-                        body: JSON.stringify({
-                            inputs: imageUrl,
-                            options: {
-                                wait_for_model: true
-                            }
-                        })
+                        body: buffer
                     }
                 );
 
