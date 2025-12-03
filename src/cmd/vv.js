@@ -1,5 +1,3 @@
-// commands/vv.js - View Once Media Revealer (Fixed detection)
-
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
 module.exports = {
@@ -10,8 +8,7 @@ module.exports = {
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
             // Check if replying to a message
-            const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
-            const quotedMsg = contextInfo?.quotedMessage;
+            const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
 
             if (!quotedMsg) {
                 return await sock.sendMessage(from, {
@@ -29,36 +26,18 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            console.log('📱 Analyzing quoted message...');
-            console.log('Available keys:', Object.keys(quotedMsg));
-            
-            // Check all possible view once message formats
+            // Extract view once message (latest Baileys format)
             let viewOnceMsg = null;
-            let viewOnceType = null;
-
-            // Method 1: viewOnceMessageV2 (most common)
-            if (quotedMsg.viewOnceMessageV2) {
+            
+            if (quotedMsg.viewOnceMessageV2?.message) {
                 viewOnceMsg = quotedMsg.viewOnceMessageV2.message;
-                viewOnceType = 'V2';
-                console.log('✅ Detected: viewOnceMessageV2');
-            }
-            // Method 2: viewOnceMessageV2Extension
-            else if (quotedMsg.viewOnceMessageV2Extension) {
+            } else if (quotedMsg.viewOnceMessageV2Extension?.message) {
                 viewOnceMsg = quotedMsg.viewOnceMessageV2Extension.message;
-                viewOnceType = 'V2Extension';
-                console.log('✅ Detected: viewOnceMessageV2Extension');
-            }
-            // Method 3: viewOnceMessage (older format)
-            else if (quotedMsg.viewOnceMessage) {
+            } else if (quotedMsg.viewOnceMessage?.message) {
                 viewOnceMsg = quotedMsg.viewOnceMessage.message;
-                viewOnceType = 'V1';
-                console.log('✅ Detected: viewOnceMessage');
             }
 
             if (!viewOnceMsg) {
-                console.log('❌ No view once message detected');
-                console.log('Message structure:', JSON.stringify(Object.keys(quotedMsg), null, 2));
-                
                 return await sock.sendMessage(from, {
                     text: `❌ *Not a view once message!*\n\n` +
                         `This appears to be a regular message.\n\n` +
@@ -72,63 +51,60 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            console.log('🔍 View once content keys:', Object.keys(viewOnceMsg));
-
-            // Check if it's image or video
+            // Check media type
             const isImage = !!viewOnceMsg.imageMessage;
             const isVideo = !!viewOnceMsg.videoMessage;
 
-            console.log('Media type - Image:', isImage, 'Video:', isVideo);
-
             if (!isImage && !isVideo) {
-                console.log('❌ Unsupported view once type');
-                console.log('Content:', Object.keys(viewOnceMsg));
-                
                 return await sock.sendMessage(from, {
                     text: `❌ *Unsupported view once type!*\n\n` +
                         `✅ Supported:\n` +
                         `• View once photos\n` +
                         `• View once videos\n\n` +
                         `❌ Not supported:\n` +
-                        `• Other media types\n\n` +
-                        `Content detected: ${Object.keys(viewOnceMsg).join(', ')}`
+                        `• Other media types`
                 }, { quoted: msg });
             }
 
             const mediaType = isImage ? 'image' : 'video';
+            const contextInfo = msg.message.extendedTextMessage.contextInfo;
             const sender = contextInfo.participant || from;
             const senderNumber = sender.split('@')[0];
             const senderName = msg.pushName || 'Unknown';
 
             // Send processing message
-            const processingMsg = await sock.sendMessage(from, {
+            await sock.sendMessage(from, {
                 text: `⏳ *Revealing view once ${mediaType}...*\n\n` +
                     `👤 From: ${senderName}\n` +
-                    `📱 Number: +${senderNumber}\n` +
-                    `📝 Type: ${viewOnceType}`
+                    `📱 Number: +${senderNumber}`
             }, { quoted: msg });
-
-            console.log(`👀 Revealing ${mediaType} (${viewOnceType}) from ${senderName}`);
 
             try {
                 // Get the media message
                 const mediaMsg = isImage ? viewOnceMsg.imageMessage : viewOnceMsg.videoMessage;
-                
-                console.log('📥 Downloading media...');
+
+                // Create a proper message structure for downloading
+                const messageForDownload = {
+                    key: {
+                        remoteJid: from,
+                        id: contextInfo.stanzaId,
+                        participant: sender
+                    },
+                    message: viewOnceMsg
+                };
 
                 // Download the media
                 const buffer = await downloadMediaMessage(
-                    { 
-                        message: viewOnceMsg
-                    },
+                    messageForDownload,
                     'buffer',
-                    {}
+                    {},
+                    {
+                        logger: console,
+                        reuploadRequest: sock.updateMediaMessage
+                    }
                 );
 
                 const sizeKB = (buffer.length / 1024).toFixed(2);
-                console.log(`✅ Downloaded: ${sizeKB} KB`);
-
-                // Get caption if exists
                 const originalCaption = mediaMsg.caption || '';
 
                 // Build reveal message
@@ -157,29 +133,16 @@ module.exports = {
                 } else {
                     await sock.sendMessage(from, {
                         video: buffer,
-                        caption: caption
+                        caption: caption,
+                        gifPlayback: mediaMsg.gifPlayback || false
                     });
                 }
 
-                // Update processing message
-                await sock.sendMessage(from, {
-                    text: `✅ *View once ${mediaType} revealed!*\n\n` +
-                        `📦 Size: ${sizeKB} KB\n` +
-                        `👤 From: ${senderName}`,
-                    edit: processingMsg.key
-                });
-
-                console.log(`✅ Successfully revealed ${mediaType}`);
-
             } catch (downloadError) {
-                console.error('❌ Download error:', downloadError);
                 throw new Error(`Download failed: ${downloadError.message}`);
             }
 
         } catch (error) {
-            console.error('❌ View once reveal error:', error);
-            console.error('Stack:', error.stack);
-
             let errorMsg = error.message;
             let errorSolution = 'Try again';
 
