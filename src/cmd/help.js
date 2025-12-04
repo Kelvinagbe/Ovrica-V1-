@@ -20,6 +20,6 @@ module.exports = {
                     serverMessageId: 200
                 }
             }
-        });
+        }, { quoted: msg }); // Added quoted reply here
     }
 };
