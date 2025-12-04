@@ -1,6 +1,6 @@
 // commands/help.js
 
-const { templates } = require('../templates');
+const { templates } = require('../tmp/templates');
 
 module.exports = {
 
@@ -12,7 +12,7 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
 
-        const CONFIG = require('../config');
+        const CONFIG = require('@/config');
 
         const text = templates.help(isAdmin);
 
