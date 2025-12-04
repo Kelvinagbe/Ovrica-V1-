@@ -1,7 +1,7 @@
 const yts = require('yt-search');
 const fs = require('fs');
 const path = require('path');
-const ytdl = require('@distube/ytdl-core');
+const axios = require('axios');
 
 module.exports = {
     name: 'play',
@@ -36,7 +36,7 @@ module.exports = {
             }
 
             const video = videos[0];
-            const videoUrl = video.url;
+            const videoId = video.videoId;
             const title = video.title;
             const thumbnail = video.thumbnail;
             const duration = video.timestamp;
@@ -55,7 +55,6 @@ module.exports = {
                 `├◆ ⏱️ *Duration:* ${duration}\n` +
                 `├◆ 👁️ *Views:* ${views.toLocaleString()}\n` +
                 `├◆ 📅 *Uploaded:* ${uploadDate}\n` +
-                `├◆ 🔗 *Link:* ${videoUrl}\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `⬇️ Downloading audio, please wait...`;
@@ -75,7 +74,7 @@ module.exports = {
                         title: title,
                         body: `${author} • ${duration}`,
                         thumbnail: { url: thumbnail },
-                        sourceUrl: videoUrl,
+                        sourceUrl: `https://youtube.com/watch?v=${videoId}`,
                         mediaType: 1,
                         renderLargerThumbnail: true
                     }
@@ -92,35 +91,44 @@ module.exports = {
             const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
             filePath = path.join(tempDir, `${timestamp}_${sanitizedTitle}.mp3`);
             
-            console.log('📥 Downloading audio...');
+            console.log('📥 Downloading audio using external API...');
 
-            // Check if video is available
-            const info = await ytdl.getInfo(videoUrl);
+            // Use a free YouTube download API
+            const apiUrl = `https://api.cobalt.tools/api/json`;
             
-            // Get audio format
-            const audioFormat = ytdl.chooseFormat(info.formats, { 
-                quality: 'highestaudio',
-                filter: 'audioonly'
+            const response = await axios.post(apiUrl, {
+                url: `https://youtube.com/watch?v=${videoId}`,
+                vCodec: 'h264',
+                vQuality: '720',
+                aFormat: 'mp3',
+                isAudioOnly: true
+            }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
 
-            if (!audioFormat) {
-                throw new Error('No audio format available for this video');
+            if (response.data.status !== 'stream' && response.data.status !== 'redirect') {
+                throw new Error('Failed to get download link from API');
             }
 
-            // Download the audio
-            const audioStream = ytdl(videoUrl, {
-                format: audioFormat,
-                quality: 'highestaudio'
+            const downloadUrl = response.data.url;
+            console.log('📥 Downloading from:', downloadUrl);
+
+            // Download the audio file
+            const audioResponse = await axios({
+                method: 'GET',
+                url: downloadUrl,
+                responseType: 'stream'
             });
 
-            const writeStream = fs.createWriteStream(filePath);
-            audioStream.pipe(writeStream);
+            const writer = fs.createWriteStream(filePath);
+            audioResponse.data.pipe(writer);
 
-            // Wait for download to complete
             await new Promise((resolve, reject) => {
-                writeStream.on('finish', resolve);
-                writeStream.on('error', reject);
-                audioStream.on('error', reject);
+                writer.on('finish', resolve);
+                writer.on('error', reject);
             });
 
             console.log(`✅ Audio downloaded: ${filePath}`);
@@ -149,7 +157,7 @@ module.exports = {
                         title: title,
                         body: author,
                         thumbnail: { url: thumbnail },
-                        sourceUrl: videoUrl,
+                        sourceUrl: `https://youtube.com/watch?v=${videoId}`,
                         mediaType: 2,
                         renderLargerThumbnail: false
                     }
@@ -164,22 +172,13 @@ module.exports = {
             
             let errorMessage = '❌ Failed to download the song.\n\n';
             
-            if (error.message.includes('Sign in') || error.message.includes('bot')) {
-                errorMessage += '⚠️ YouTube is blocking the request.\n\n';
-                errorMessage += 'This happens due to YouTube restrictions. Try:\n';
-                errorMessage += '• A different song\n';
-                errorMessage += '• A less popular video\n';
-                errorMessage += '• Again in a few minutes';
-            } else if (error.message.includes('Video unavailable')) {
-                errorMessage += 'This video is unavailable or private.';
-            } else if (error.message.includes('age')) {
-                errorMessage += 'This video is age-restricted.';
-            } else if (error.message.includes('copyright')) {
-                errorMessage += 'This video has copyright restrictions.';
+            if (error.response) {
+                errorMessage += `API Error: ${error.response.status}\n\n`;
+                errorMessage += 'The download service is unavailable. Try again later.';
+            } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+                errorMessage += 'Download took too long. Try a shorter video.';
             } else if (error.message.includes('too large')) {
                 errorMessage += 'Audio file is too large (max 100MB).';
-            } else if (error.message.includes('No audio format')) {
-                errorMessage += 'No audio available for this video.';
             } else {
                 errorMessage += `*Error:* ${error.message}\n\nPlease try a different song.`;
             }
