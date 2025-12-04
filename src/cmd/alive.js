@@ -52,7 +52,7 @@ module.exports = {
                 const usedDisk = (totalDisk - freeDisk).toFixed(2);
                 const diskUsagePercent = ((usedDisk / totalDisk) * 100).toFixed(1);
                 
-                diskText = `├◆ 💿 *Disk:* ${usedDisk}GB / ${totalDisk}GB (${diskUsagePercent}%)\n`;
+                diskText = `├◆ *Disk:* ${usedDisk}GB / ${totalDisk}GB (${diskUsagePercent}%)\n`;
             }
 
             // Determine speed emoji and status
@@ -77,20 +77,20 @@ module.exports = {
             const aliveMessage = 
                 `┌ ❏ *⌜ BOT STATUS ⌟* ❏\n` +
                 `│\n` +
-                `├◆ ✅ *Status:* Online\n` +
+                `├◆ *Status:* Online\n` +
                 `├◆ ${speedEmoji} *Speed:* ${responseTime}ms\n` +
-                `├◆ 📊 *Performance:* ${speedStatus}\n` +
+                `├◆ *Performance:* ${speedStatus}\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `┌ ❏ ◆ *⌜ SYSTEM INFO ⌟* ◆\n` +
                 `│\n` +
-                `├◆ ⏱️ *Uptime:* ${uptimeStr}\n` +
-                `├◆ 🤖 *Bot Memory:* ${usedMem}MB / ${totalMem}MB\n` +
+                `├◆ *Uptime:* ${uptimeStr}\n` +
+                `├◆ *Bot Memory:* ${usedMem}MB / ${totalMem}MB\n` +
                 `├◆ ${ramEmoji} *System RAM:* ${usedSystemRAM}GB / ${totalSystemRAM}GB (${ramUsagePercent}%)\n` +
                 diskText +
-                `├◆ 🖥️ *Platform:* ${process.platform}\n` +
-                `├◆ 📦 *Node:* ${process.version}\n` +
-                `├◆ ⚙️ *CPU Cores:* ${os.cpus().length}\n` +
+                `├◆ *Platform:* ${process.platform}\n` +
+                `├◆ *Node:* ${process.version}\n` +
+                `├◆ *CPU Cores:* ${os.cpus().length}\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `> Powered by 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
