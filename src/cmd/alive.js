@@ -67,11 +67,11 @@ module.exports = {
             }
 
             // Determine RAM status emoji
-            let ramEmoji = '🟢';
+            let ramEmoji = '';
             if (ramUsagePercent > 80) {
-                ramEmoji = '🔴';
+                ramEmoji = '';
             } else if (ramUsagePercent > 60) {
-                ramEmoji = '🟡';
+                ramEmoji = '';
             }
 
             const aliveMessage = 
