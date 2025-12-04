@@ -1,197 +1,117 @@
+
 const gis = require('g-i-s');
 const axios = require('axios');
-const { MessageType } = require('@whiskeysockets/baileys');
 
-/**
- * Image Search Command Handler
- * Usage: .img <search query> or .image <search query>
- */
+module.exports = {
+  name: 'img',
+  aliases: ['image', 'imgsearch', 'picture', 'pic'],
+  category: 'search',
+  description: 'Search and download images',
+  usage: 'img <query>',
+  
+  async execute(sock, msg, args) {
+    try {
+      const chatId = msg.key.remoteJid;
+      const query = args.join(' ');
 
-const imageSearch = async (sock, msg, args) => {
-  try {
-    const chatId = msg.key.remoteJid;
-    const query = args.join(' ');
+      if (!query) {
+        return await sock.sendMessage(chatId, {
+          text: '❌ *Usage:* .img <search query>\n*Example:* .img nature wallpaper'
+        });
+      }
 
-    // Validate input
-    if (!query || query.trim() === '') {
       await sock.sendMessage(chatId, {
-        text: '❌ Please provide a search query!\n\nUsage: .img <search term>\nExample: .img cute cats'
+        text: `🔍 Searching: *${query}*...`
       });
-      return;
-    }
 
-    // Send searching message
-    await sock.sendMessage(chatId, {
-      text: `🔍 Searching for images: *${query}*\nPlease wait...`
-    });
-
-    // Search for images
-    const searchOptions = {
-      searchTerm: query,
-      queryStringAddition: '&tbs=isz:m', // Medium size images
-      filterOutDomains: ['pinterest.com'] // Optional: filter out certain domains
-    };
-
-    gis(searchOptions, async (error, results) => {
-      if (error) {
-        console.error('Image search error:', error);
-        await sock.sendMessage(chatId, {
-          text: '❌ An error occurred while searching for images. Please try again later.'
-        });
-        return;
-      }
-
-      if (!results || results.length === 0) {
-        await sock.sendMessage(chatId, {
-          text: `❌ No images found for: *${query}*\n\nTry a different search term.`
-        });
-        return;
-      }
-
-      // Get first 5 valid images
-      let sentCount = 0;
-      const maxImages = 5;
-
-      for (let i = 0; i < results.length && sentCount < maxImages; i++) {
-        try {
-          const imageUrl = results[i].url;
-          
-          // Download image
-          const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 10000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+      gis({ searchTerm: query }, async (error, results) => {
+        if (error || !results || results.length === 0) {
+          return await sock.sendMessage(chatId, {
+            text: '❌ No results found.'
           });
-
-          const imageBuffer = Buffer.from(response.data);
-
-          // Send image
-          await sock.sendMessage(chatId, {
-            image: imageBuffer,
-            caption: `📸 *Image ${sentCount + 1}/${maxImages}*\n\n🔍 Query: ${query}\n🌐 Source: ${results[i].url.substring(0, 50)}...`
-          });
-
-          sentCount++;
-
-          // Small delay between sends
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-        } catch (imgError) {
-          console.log(`Failed to send image ${i + 1}:`, imgError.message);
-          // Continue to next image
-          continue;
         }
-      }
 
-      if (sentCount === 0) {
-        await sock.sendMessage(chatId, {
-          text: '❌ Could not download any images. The images may be protected or unavailable.'
-        });
-      } else if (sentCount < maxImages) {
-        await sock.sendMessage(chatId, {
-          text: `✅ Sent ${sentCount} image(s) for: *${query}*\n\n(Some images were unavailable)`
-        });
-      }
+        let sent = 0;
+        for (let i = 0; i < Math.min(5, results.length); i++) {
+          try {
+            const res = await axios.get(results[i].url, {
+              responseType: 'arraybuffer',
+              timeout: 10000,
+              headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
 
-    });
+            await sock.sendMessage(chatId, {
+              image: Buffer.from(res.data),
+              caption: `📷 ${sent + 1} - ${query}`
+            });
 
-  } catch (error) {
-    console.error('Image search command error:', error);
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '❌ An unexpected error occurred. Please try again.'
-    });
+            sent++;
+            await new Promise(r => setTimeout(r, 1500));
+          } catch (e) {
+            continue;
+          }
+        }
+
+        if (sent === 0) {
+          await sock.sendMessage(chatId, { text: '❌ Download failed.' });
+        }
+      });
+
+    } catch (err) {
+      console.error(err);
+      await sock.sendMessage(msg.key.remoteJid, {
+        text: '❌ Error occurred.'
+      });
+    }
   }
 };
 
-// Alternative implementation using Cheerio (web scraping method)
-const imageSearchScraper = async (sock, msg, args) => {
-  try {
-    const cheerio = require('cheerio');
-    const chatId = msg.key.remoteJid;
-    const query = args.join(' ');
+// METHOD 3: Simple handler for inline registration
+const handleImageSearch = async (sock, msg, args) => {
+  const chatId = msg.key.remoteJid;
+  const query = args.join(' ');
 
-    if (!query || query.trim() === '') {
-      await sock.sendMessage(chatId, {
-        text: '❌ Please provide a search query!\n\nUsage: .img <search term>'
-      });
-      return;
+  if (!query) {
+    return sock.sendMessage(chatId, {
+      text: '❌ Usage: .img <query>'
+    });
+  }
+
+  sock.sendMessage(chatId, { text: `🔍 Searching: ${query}...` });
+
+  gis({ searchTerm: query }, async (err, results) => {
+    if (err || !results?.length) {
+      return sock.sendMessage(chatId, { text: '❌ No results.' });
     }
 
-    await sock.sendMessage(chatId, {
-      text: `🔍 Searching for: *${query}*...`
-    });
-
-    // Search Google Images
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
-    
-    const response = await axios.get(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-
-    const $ = cheerio.load(response.data);
-    const imageUrls = [];
-
-    // Extract image URLs from page
-    $('img').each((i, elem) => {
-      const src = $(elem).attr('src');
-      if (src && src.startsWith('http')) {
-        imageUrls.push(src);
-      }
-    });
-
-    if (imageUrls.length === 0) {
-      await sock.sendMessage(chatId, {
-        text: '❌ No images found. Try a different search term.'
-      });
-      return;
-    }
-
-    // Send first 3 images
-    let sent = 0;
-    for (let i = 0; i < Math.min(3, imageUrls.length); i++) {
+    for (let i = 0; i < Math.min(3, results.length); i++) {
       try {
-        const imgResponse = await axios.get(imageUrls[i], {
+        const { data } = await axios.get(results[i].url, {
           responseType: 'arraybuffer',
           timeout: 10000
         });
 
         await sock.sendMessage(chatId, {
-          image: Buffer.from(imgResponse.data),
-          caption: `📸 Result ${i + 1} for: ${query}`
+          image: Buffer.from(data),
+          caption: `📸 ${i + 1} - ${query}`
         });
-        
-        sent++;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (err) {
+
+        await new Promise(r => setTimeout(r, 1000));
+      } catch (e) {
         continue;
       }
     }
-
-    if (sent === 0) {
-      await sock.sendMessage(chatId, {
-        text: '❌ Could not download images.'
-      });
-    }
-
-  } catch (error) {
-    console.error('Scraper error:', error);
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '❌ Search failed. Please try again.'
-    });
-  }
+  });
 };
 
-// Export the command
-module.exports = {
-  name: 'img',
-  aliases: ['image', 'imgsearch', 'pics'],
-  category: 'search',
-  description: 'Search and send images from the web',
-  usage: '.img <search query>',
-  execute: imageSearch,
-  alternateMethod: imageSearchScraper
-};
+// Export based on your bot structure
+// Uncomment the one you need:
+
+// For direct function export:
+// module.exports = handleImageSearch;
+
+// For object export:
+// module.exports = { name: 'img', execute: handleImageSearch };
+
+// For multiple exports:
+// module.exports = { 
