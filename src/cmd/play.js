@@ -1,10 +1,7 @@
 const yts = require('yt-search');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-
-const execPromise = promisify(exec);
+const YTDlpWrap = require('yt-dlp-wrap').default;
 
 module.exports = {
     name: 'play',
@@ -93,36 +90,35 @@ module.exports = {
             }
 
             const timestamp = Date.now();
-            const outputPath = path.join(tempDir, `${timestamp}`);
+            const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+            const outputPath = path.join(tempDir, `${timestamp}_${sanitizedTitle}.mp3`);
             
             console.log('📥 Downloading audio with yt-dlp...');
 
-            // Check if yt-dlp is installed
-            try {
-                await execPromise('yt-dlp --version');
-            } catch (error) {
-                throw new Error('yt-dlp not installed. Please install: sudo apt install yt-dlp');
-            }
+            // Initialize yt-dlp-wrap
+            const ytDlpWrap = new YTDlpWrap();
 
-            // Download audio using yt-dlp
-            const ytdlCommand = `yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o "${outputPath}.%(ext)s" --no-playlist --no-warnings "${videoUrl}"`;
-            
-            console.log('Executing:', ytdlCommand);
-            
-            await execPromise(ytdlCommand, { 
-                timeout: 120000, // 2 minutes timeout
-                maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-            });
+            // Download audio using yt-dlp-wrap with progress tracking
+            await ytDlpWrap.execPromise([
+                videoUrl,
+                '-f', 'bestaudio',
+                '--extract-audio',
+                '--audio-format', 'mp3',
+                '--audio-quality', '0',
+                '-o', outputPath,
+                '--no-playlist',
+                '--no-warnings',
+                '--max-filesize', '100M', // Prevent downloading files larger than 100MB
+                '--no-check-certificate'
+            ]);
 
-            // Find the downloaded file
-            const files = fs.readdirSync(tempDir).filter(f => f.startsWith(timestamp.toString()));
-            
-            if (files.length === 0) {
+            filePath = outputPath;
+            console.log(`✅ Audio downloaded: ${filePath}`);
+
+            // Check if file exists
+            if (!fs.existsSync(filePath)) {
                 throw new Error('Download failed - file not found');
             }
-
-            filePath = path.join(tempDir, files[0]);
-            console.log(`✅ Audio downloaded: ${filePath}`);
 
             // Check file size
             const stats = fs.statSync(filePath);
@@ -163,12 +159,12 @@ module.exports = {
             
             let errorMessage = '❌ Failed to download the song.\n\n';
             
-            if (error.message.includes('yt-dlp not installed')) {
+            if (error.message.includes('yt-dlp') && error.message.includes('not found')) {
                 errorMessage += '⚠️ *yt-dlp is not installed*\n\n';
                 errorMessage += '*Installation:*\n';
                 errorMessage += '```\nsudo apt update\nsudo apt install yt-dlp\n```\n\n';
                 errorMessage += '*Or using pip:*\n';
-                errorMessage += '```\npip install yt-dlp\n```';
+                errorMessage += '```\npip install -U yt-dlp\n```';
             } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
                 errorMessage += 'Download took too long. The video might be too large or connection is slow.';
             } else if (error.message.includes('age')) {
@@ -177,16 +173,16 @@ module.exports = {
                 errorMessage += 'Video is unavailable or private.';
             } else if (error.message.includes('copyright')) {
                 errorMessage += 'This video has copyright restrictions.';
-            } else if (error.message.includes('too large')) {
+            } else if (error.message.includes('too large') || error.message.includes('max-filesize')) {
                 errorMessage += 'Audio file is too large to send via WhatsApp (max 100MB).';
-            } else if (error.message.includes('Command failed')) {
+            } else if (error.message.includes('ERROR')) {
                 errorMessage += 'yt-dlp failed to download. The video might be restricted or unavailable.\n\n';
                 errorMessage += 'Try a different song or check if yt-dlp is updated:\n```\npip install -U yt-dlp\n```';
             } else {
                 errorMessage += `*Error:* ${error.message}\n\nPlease try again or use a different song.`;
             }
 
-            await sock.sendMessage(from, { text: errorMessage });
+            await sock.sendMessage(from, { text: errorMessage }, { quoted: msg });
             
         } finally {
             // Clean up the temporary file
