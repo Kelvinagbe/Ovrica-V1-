@@ -67,11 +67,11 @@ module.exports = {
             }
 
             // Determine RAM status emoji
-            let ramEmoji = '';
+            let ramEmoji = '🟢';
             if (ramUsagePercent > 80) {
-                ramEmoji = '';
+                ramEmoji = '🔴';
             } else if (ramUsagePercent > 60) {
-                ramEmoji = '';
+                ramEmoji = '🟡';
             }
 
             const aliveMessage = 
@@ -85,8 +85,8 @@ module.exports = {
                 `┌ ❏ ◆ *⌜ SYSTEM INFO ⌟* ◆\n` +
                 `│\n` +
                 `├◆ *Uptime:* ${uptimeStr}\n` +
-                `├◆ *Bot Memory:* ${usedMem}MB / ${totalMem}MB\n` +
-                `├◆ ${ramEmoji} *System RAM:* ${usedSystemRAM}GB / ${totalSystemRAM}GB (${ramUsagePercent}%)\n` +
+                `├◆ *Memory:* ${usedMem}MB / ${totalMem}MB\n` +
+                `├◆ ${ramEmoji} *RAM:* ${usedSystemRAM}GB / ${totalSystemRAM}GB (${ramUsagePercent}%)\n` +
                 diskText +
                 `├◆ *Platform:* ${process.platform}\n` +
                 `├◆ *Node:* ${process.version}\n` +
