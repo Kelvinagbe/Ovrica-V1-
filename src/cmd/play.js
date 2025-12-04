@@ -1,7 +1,7 @@
 const yts = require('yt-search');
 const fs = require('fs');
 const path = require('path');
-const play = require('play-dl');
+const ytdl = require('@distube/ytdl-core');
 
 module.exports = {
     name: 'play',
@@ -46,6 +46,7 @@ module.exports = {
 
             console.log(`✅ Found: ${title} by ${author}`);
 
+            // Send song info with thumbnail
             const infoMessage = 
                 `┌ ❏ *⌜ SONG INFO ⌟* ❏\n` +
                 `│\n` +
@@ -61,12 +62,26 @@ module.exports = {
 
             await sock.sendMessage(from, {
                 image: { url: thumbnail },
-                caption: infoMessage
+                caption: infoMessage,
+                contextInfo: {
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: "120363418958316196@newsletter",
+                        newsletterName: "𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄",
+                        serverMessageId: 200
+                    },
+                    externalAdReply: {
+                        title: title,
+                        body: `${author} • ${duration}`,
+                        thumbnail: { url: thumbnail },
+                        sourceUrl: videoUrl,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
             }, { quoted: msg });
 
-            // Get stream info
-            const stream = await play.stream(videoUrl);
-            
             // Create temp directory
             const tempDir = path.join(process.cwd(), 'temp');
             if (!fs.existsSync(tempDir)) {
@@ -74,35 +89,105 @@ module.exports = {
             }
 
             const timestamp = Date.now();
-            filePath = path.join(tempDir, `${timestamp}.mp3`);
+            const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+            filePath = path.join(tempDir, `${timestamp}_${sanitizedTitle}.mp3`);
             
-            // Download the audio
-            const writeStream = fs.createWriteStream(filePath);
-            stream.stream.pipe(writeStream);
+            console.log('📥 Downloading audio...');
 
+            // Check if video is available
+            const info = await ytdl.getInfo(videoUrl);
+            
+            // Get audio format
+            const audioFormat = ytdl.chooseFormat(info.formats, { 
+                quality: 'highestaudio',
+                filter: 'audioonly'
+            });
+
+            if (!audioFormat) {
+                throw new Error('No audio format available for this video');
+            }
+
+            // Download the audio
+            const audioStream = ytdl(videoUrl, {
+                format: audioFormat,
+                quality: 'highestaudio'
+            });
+
+            const writeStream = fs.createWriteStream(filePath);
+            audioStream.pipe(writeStream);
+
+            // Wait for download to complete
             await new Promise((resolve, reject) => {
                 writeStream.on('finish', resolve);
                 writeStream.on('error', reject);
+                audioStream.on('error', reject);
             });
 
             console.log(`✅ Audio downloaded: ${filePath}`);
+
+            // Check file size
+            const stats = fs.statSync(filePath);
+            if (stats.size === 0) {
+                throw new Error('Downloaded file is empty');
+            }
+
+            const fileSizeMB = (stats.size / 1024 / 1024).toFixed(2);
+            console.log(`📦 File size: ${fileSizeMB} MB`);
+
+            // Check if file is too large
+            if (stats.size > 100 * 1024 * 1024) {
+                throw new Error('File is too large to send via WhatsApp (max 100MB)');
+            }
 
             // Send the audio file
             await sock.sendMessage(from, {
                 audio: fs.readFileSync(filePath),
                 mimetype: 'audio/mpeg',
-                fileName: `${title}.mp3`
+                fileName: `${title}.mp3`,
+                contextInfo: {
+                    externalAdReply: {
+                        title: title,
+                        body: author,
+                        thumbnail: { url: thumbnail },
+                        sourceUrl: videoUrl,
+                        mediaType: 2,
+                        renderLargerThumbnail: false
+                    }
+                }
             }, { quoted: msg });
 
             console.log(`🎵 Audio sent to ${from}: ${title}`);
 
         } catch (error) {
             console.error('❌ Play command error:', error);
-            await sock.sendMessage(from, { 
-                text: `❌ Failed to download the song.\n\n*Error:* ${error.message}` 
-            }, { quoted: msg });
+            console.error('Error stack:', error.stack);
+            
+            let errorMessage = '❌ Failed to download the song.\n\n';
+            
+            if (error.message.includes('Sign in') || error.message.includes('bot')) {
+                errorMessage += '⚠️ YouTube is blocking the request.\n\n';
+                errorMessage += 'This happens due to YouTube restrictions. Try:\n';
+                errorMessage += '• A different song\n';
+                errorMessage += '• A less popular video\n';
+                errorMessage += '• Again in a few minutes';
+            } else if (error.message.includes('Video unavailable')) {
+                errorMessage += 'This video is unavailable or private.';
+            } else if (error.message.includes('age')) {
+                errorMessage += 'This video is age-restricted.';
+            } else if (error.message.includes('copyright')) {
+                errorMessage += 'This video has copyright restrictions.';
+            } else if (error.message.includes('too large')) {
+                errorMessage += 'Audio file is too large (max 100MB).';
+            } else if (error.message.includes('No audio format')) {
+                errorMessage += 'No audio available for this video.';
+            } else {
+                errorMessage += `*Error:* ${error.message}\n\nPlease try a different song.`;
+            }
+
+            await sock.sendMessage(from, { text: errorMessage }, { quoted: msg });
             
         } finally {
+            // Clean up the temporary file
             if (filePath && fs.existsSync(filePath)) {
                 setTimeout(() => {
                     try {
