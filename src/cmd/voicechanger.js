@@ -1,6 +1,7 @@
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const path = require('path');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
 module.exports = {
     name: 'voicechange',
@@ -42,7 +43,7 @@ module.exports = {
 
             if (!validEffects.includes(effect)) {
                 return await sock.sendMessage(from, {
-                    text: `❌ Invalid effect! Use: ${validEffects.join(', ')}`
+                    text: `❌ Invalid effect!\n\n✅ Available: ${validEffects.join(', ')}`
                 }, { quoted: msg });
             }
 
@@ -50,89 +51,170 @@ module.exports = {
                 text: `🎭 *Processing ${effect} effect...*\n\n⏳ Please wait...`
             }, { quoted: msg });
 
-            // Download audio
-            const buffer = await downloadMediaMessage(sock, audioMsg);
+            // Create temp directory
             const tempDir = path.join(__dirname, '../temp');
             if (!fs.existsSync(tempDir)) {
                 fs.mkdirSync(tempDir, { recursive: true });
             }
 
-            const inputPath = path.join(tempDir, `input_${Date.now()}.ogg`);
+            // Download audio with proper handling
+            console.log('Downloading audio...');
+            const stream = await downloadContentFromMessage(audioMsg, 'audio');
+            let buffer = Buffer.from([]);
+            
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
+            }
+
+            console.log(`Downloaded ${buffer.length} bytes`);
+
+            // Save input file - use .opus for WhatsApp audio
+            const inputPath = path.join(tempDir, `input_${Date.now()}.opus`);
+            const convertedPath = path.join(tempDir, `converted_${Date.now()}.wav`);
             const outputPath = path.join(tempDir, `output_${Date.now()}.mp3`);
             
             fs.writeFileSync(inputPath, buffer);
 
-            // Apply effect
-            await applyVoiceEffect(inputPath, outputPath, effect);
+            // Step 1: Convert to WAV first (ensures compatibility)
+            await convertToWav(inputPath, convertedPath);
+            console.log('Converted to WAV');
 
+            // Step 2: Apply effect
+            await applyVoiceEffect(convertedPath, outputPath, effect);
+            console.log('Applied effect');
+
+            // Step 3: Read and send
             const audioBuffer = fs.readFileSync(outputPath);
+            const fileSizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
 
             await sock.sendMessage(from, {
                 audio: audioBuffer,
                 mimetype: 'audio/mpeg',
-                ptt: true
+                ptt: true, // Send as voice note
+                fileName: `voice_${effect}_${Date.now()}.mp3`
             });
 
             await sock.sendMessage(from, {
-                text: `✅ *Voice effect applied!*\n\n🎭 Effect: ${effect}`,
+                text: `✅ *Voice effect applied!*\n\n🎭 Effect: ${effect}\n📦 Size: ${fileSizeMB} MB`,
                 edit: processingMsg.key
             });
 
             // Cleanup
-            fs.unlinkSync(inputPath);
-            fs.unlinkSync(outputPath);
+            try {
+                fs.unlinkSync(inputPath);
+                fs.unlinkSync(convertedPath);
+                fs.unlinkSync(outputPath);
+            } catch (cleanupError) {
+                console.error('Cleanup error:', cleanupError);
+            }
 
         } catch (error) {
             console.error('❌ Voice change error:', error);
             await sock.sendMessage(from, {
-                text: `❌ *Voice effect failed!*\n\n📝 Error: ${error.message}`
+                text: `❌ *Voice effect failed!*\n\n📝 Error: ${error.message}\n\n💡 Make sure you replied to a voice note!`
             }, { quoted: msg });
         }
     }
 };
 
-async function applyVoiceEffect(inputPath, outputPath, effect) {
+// Convert to WAV format first
+function convertToWav(inputPath, outputPath) {
     return new Promise((resolve, reject) => {
-        let command = ffmpeg(inputPath);
-
-        switch (effect) {
-            case 'robot':
-                command.audioFilters('afftdn=nf=-25,aecho=0.8:0.9:1000:0.3');
-                break;
-            case 'chipmunk':
-                command.audioFilters('asetrate=44100*1.5,atempo=1/1.5');
-                break;
-            case 'deep':
-                command.audioFilters('asetrate=44100*0.75,atempo=1/0.75');
-                break;
-            case 'echo':
-                command.audioFilters('aecho=0.8:0.88:60:0.4');
-                break;
-            case 'reverse':
-                command.audioFilters('areverse');
-                break;
-            case 'fast':
-                command.audioFilters('atempo=2.0');
-                break;
-            case 'slow':
-                command.audioFilters('atempo=0.5');
-                break;
-        }
-
-        command
+        ffmpeg(inputPath)
+            .toFormat('wav')
+            .audioCodec('pcm_s16le')
+            .audioFrequency(44100)
+            .audioChannels(1)
             .output(outputPath)
-            .on('end', resolve)
-            .on('error', reject)
+            .on('end', () => {
+                console.log('WAV conversion complete');
+                resolve();
+            })
+            .on('error', (err) => {
+                console.error('WAV conversion error:', err);
+                reject(err);
+            })
             .run();
     });
 }
 
-async function downloadMediaMessage(sock, message) {
-    const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-    const stream = await downloadContentFromMessage(message, 'audio');
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
-    }
-    return buffer;
+// Apply voice effects
+function applyVoiceEffect(inputPath, outputPath, effect) {
+    return new Promise((resolve, reject) => {
+        let command = ffmpeg(inputPath);
+
+        // Apply different effects
+        switch (effect) {
+            case 'robot':
+                // Robot voice: chorus + flanger
+                command.audioFilters([
+                    'afftdn=nf=-25',
+                    'aecho=0.8:0.9:1000:0.3',
+                    'chorus=0.5:0.9:50:0.4:0.25:2'
+                ]);
+                break;
+
+            case 'chipmunk':
+                // High pitch chipmunk voice
+                command.audioFilters([
+                    'asetrate=44100*1.5',
+                    'aresample=44100',
+                    'atempo=1.0'
+                ]);
+                break;
+
+            case 'deep':
+                // Deep/low pitch voice
+                command.audioFilters([
+                    'asetrate=44100*0.75',
+                    'aresample=44100',
+                    'atempo=1.0'
+                ]);
+                break;
+
+            case 'echo':
+                // Strong echo effect
+                command.audioFilters('aecho=0.8:0.88:60:0.4');
+                break;
+
+            case 'reverse':
+                // Reverse audio
+                command.audioFilters('areverse');
+                break;
+
+            case 'fast':
+                // Speed up 2x
+                command.audioFilters('atempo=2.0');
+                break;
+
+            case 'slow':
+                // Slow down 0.5x
+                command.audioFilters('atempo=0.5');
+                break;
+
+            default:
+                command.audioFilters('volume=1.0');
+        }
+
+        command
+            .toFormat('mp3')
+            .audioBitrate('128k')
+            .audioCodec('libmp3lame')
+            .output(outputPath)
+            .on('start', (commandLine) => {
+                console.log('FFmpeg command:', commandLine);
+            })
+            .on('progress', (progress) => {
+                console.log('Processing: ' + progress.percent + '% done');
+            })
+            .on('end', () => {
+                console.log('Effect applied successfully');
+                resolve();
+            })
+            .on('error', (err) => {
+                console.error('FFmpeg error:', err);
+                reject(err);
+            })
+            .run();
+    });
 }
