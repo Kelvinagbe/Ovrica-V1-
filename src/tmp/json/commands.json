@@ -50,6 +50,7 @@
           "/delete",
           "/block",
           "/unblock",
+          "/meme",
           "/pair",
           "/warnings"
         ]
