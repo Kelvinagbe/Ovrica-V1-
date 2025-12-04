@@ -1,6 +1,7 @@
+// commands/update.js - Safe Update Bot from Git
+
 const { exec } = require('child_process');
 const util = require('util');
-const { templates, design } = require('../tmp/templates');
 const execPromise = util.promisify(exec);
 
 module.exports = {
@@ -12,20 +13,18 @@ module.exports = {
         try {
             // Check if command is used in a group
             if (from.endsWith('@g.us')) {
-                const notAllowedMsg = design.header('NOT ALLOWED');
-                let text = notAllowedMsg + '\n';
-                text += design.separator() + '\n';
-                text += design.item('⚠️ ' + design.bold('This function is not allowed in groups')) + '\n';
-                text += design.item('🔒 ' + design.bold('Security restriction')) + '\n';
-                text += design.separator() + '\n';
-                text += design.item('💡 ' + design.bold('Please use in:')) + '\n';
-                text += design.item('• Private chat with bot') + '\n';
-                text += design.item('• Direct message only') + '\n';
-                text += design.footer() + '\n';
-                text += '> Powered by 🎭Kelvin🎭';
-
                 return await sock.sendMessage(from, {
-                    text,
+                    text: `╔══[❏⧉ *NOT ALLOWED* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ ⚠️ This function is not allowed in groups\n` +
+                        `║➲ 🔒 Security restriction\n` +
+                        `║\n` +
+                        `║➲ 💡 Please use in:\n` +
+                        `║➲ • Private chat with bot\n` +
+                        `║➲ • Direct message only\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]\n` +
+                        `> Powered by 🎭Kelvin🎭`,
                     contextInfo: {
                         forwardingScore: 999,
                         isForwarded: true,
@@ -42,51 +41,50 @@ module.exports = {
 
             // Show help menu
             if (!action || !['check', 'now', 'force', 'status'].includes(action)) {
-                let helpText = design.header('BOT UPDATE') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('🔄 ' + design.bold('Update Bot System')) + '\n';
-                helpText += design.footer() + '\n\n';
-                
-                helpText += design.header('COMMANDS') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('🔍 ' + design.bold('Check Updates:')) + '\n';
-                helpText += design.item('   /update check') + '\n';
-                helpText += design.item('   (Check for available updates)') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('⬇️ ' + design.bold('Update Now:')) + '\n';
-                helpText += design.item('   /update now') + '\n';
-                helpText += design.item('   (Pull latest changes - SAFE)') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('⚡ ' + design.bold('Force Update:')) + '\n';
-                helpText += design.item('   /update force') + '\n';
-                helpText += design.item('   (Force pull - USE WITH CAUTION)') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('📊 ' + design.bold('Check Status:')) + '\n';
-                helpText += design.item('   /update status') + '\n';
-                helpText += design.item('   (Show git status)') + '\n';
-                helpText += design.footer() + '\n\n';
-                
-                helpText += design.header('SAFETY INFO') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('✅ ' + design.bold('SAFE FILES (Not touched):')) + '\n';
-                helpText += design.item('• auth_info/ (WhatsApp session)') + '\n';
-                helpText += design.item('• config.js (your settings)') + '\n';
-                helpText += design.item('• .env (environment vars)') + '\n';
-                helpText += design.item('• logs/ (your logs)') + '\n';
-                helpText += design.item('• Any files in .gitignore') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('🔄 ' + design.bold('UPDATED FILES:')) + '\n';
-                helpText += design.item('• Commands code') + '\n';
-                helpText += design.item('• Bot logic') + '\n';
-                helpText += design.item('• Dependencies') + '\n';
-                helpText += design.separator() + '\n';
-                helpText += design.item('⏱️ ' + design.bold('Downtime:') + ' 2-5 seconds') + '\n';
-                helpText += design.item('🔁 ' + design.bold('Auto-restart:') + ' Yes (with PM2)') + '\n';
-                helpText += design.footer() + '\n';
-                helpText += '> Powered by 🎭Kelvin🎭';
-
                 return await sock.sendMessage(from, {
-                    text: helpText,
+                    text: `╔══[❏⧉ *BOT UPDATE* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ 🔄 Update Bot System\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]\n` +
+                        `╔══[❏⧉ *COMMANDS* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ 🔍 Check Updates:\n` +
+                        `║➲    /update check\n` +
+                        `║➲    (Check for available updates)\n` +
+                        `║\n` +
+                        `║➲ ⬇️ Update Now:\n` +
+                        `║➲    /update now\n` +
+                        `║➲    (Pull latest changes - SAFE)\n` +
+                        `║\n` +
+                        `║➲ ⚡ Force Update:\n` +
+                        `║➲    /update force\n` +
+                        `║➲    (Force pull - USE WITH CAUTION)\n` +
+                        `║\n` +
+                        `║➲ 📊 Check Status:\n` +
+                        `║➲    /update status\n` +
+                        `║➲    (Show git status)\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]\n` +
+                        `╔══[❏⧉ *SAFETY INFO* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ ✅ SAFE FILES (Not touched):\n` +
+                        `║➲ • auth_info/ (WhatsApp session)\n` +
+                        `║➲ • config.js (your settings)\n` +
+                        `║➲ • .env (environment vars)\n` +
+                        `║➲ • logs/ (your logs)\n` +
+                        `║➲ • Any files in .gitignore\n` +
+                        `║\n` +
+                        `║➲ 🔄 UPDATED FILES:\n` +
+                        `║➲ • Commands code\n` +
+                        `║➲ • Bot logic\n` +
+                        `║➲ • Dependencies\n` +
+                        `║\n` +
+                        `║➲ ⏱️ Downtime: 2-5 seconds\n` +
+                        `║➲ 🔁 Auto-restart: Yes (with PM2)\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]\n` +
+                        `> Powered by 🎭Kelvin🎭`,
                     contextInfo: {
                         forwardingScore: 999,
                         isForwarded: true,
@@ -109,14 +107,13 @@ module.exports = {
 
             // Check for updates
             if (action === 'check') {
-                let checkText = design.header('CHECKING') + '\n';
-                checkText += design.separator() + '\n';
-                checkText += design.item('🔍 ' + design.bold('Checking for updates...')) + '\n';
-                checkText += design.item('⏳ Please wait...') + '\n';
-                checkText += design.footer();
-
                 const checkMsg = await sock.sendMessage(from, {
-                    text: checkText,
+                    text: `╔══[❏⧉ *CHECKING* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ 🔍 Checking for updates...\n` +
+                        `║➲ ⏳ Please wait...\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]`,
                     contextInfo: {
                         forwardingScore: 999,
                         isForwarded: true,
@@ -139,56 +136,75 @@ module.exports = {
 
                     if (updatesCount > 0) {
                         const { stdout: commits } = await execPromise(`git log HEAD..origin/${branch} --oneline --no-decorate -5`);
-                        const commitList = commits.trim().split('\n').map(c => design.item(`• ${c}`)).join('\n');
+                        const commitList = commits.trim().split('\n').map(c => `║➲ • ${c}`).join('\n');
 
-                        let updateAvailText = design.header('UPDATES AVAILABLE') + '\n';
-                        updateAvailText += design.separator() + '\n';
-                        updateAvailText += design.item(`✅ ${design.bold(updatesCount + ' update(s) available')}`) + '\n';
-                        updateAvailText += design.item(`🌿 ${design.bold('Branch:')} ${branch}`) + '\n';
-                        updateAvailText += design.item(`📍 ${design.bold('Current:')} ${currentCommit.trim()}`) + '\n';
-                        updateAvailText += design.item(`📍 ${design.bold('Latest:')} ${latestCommit.trim()}`) + '\n';
-                        updateAvailText += design.footer() + '\n\n';
-                        updateAvailText += design.header('RECENT CHANGES') + '\n';
-                        updateAvailText += design.separator() + '\n';
-                        updateAvailText += commitList + '\n';
-                        updateAvailText += design.footer() + '\n\n';
-                        updateAvailText += design.header('UPDATE NOW') + '\n';
-                        updateAvailText += design.separator() + '\n';
-                        updateAvailText += design.item('📥 Safe update: /update now') + '\n';
-                        updateAvailText += design.item('⚡ Force update: /update force') + '\n';
-                        updateAvailText += design.footer() + '\n';
-                        updateAvailText += '> Powered by 🎭Kelvin🎭';
-
-                        await sock.sendMessage(from, { text: updateAvailText, edit: checkMsg.key });
+                        await sock.sendMessage(from, {
+                            text: `╔══[❏⧉ *UPDATES AVAILABLE* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ ✅ ${updatesCount} update(s) available\n` +
+                                `║➲ 🌿 Branch: ${branch}\n` +
+                                `║➲ 📍 Current: ${currentCommit.trim()}\n` +
+                                `║➲ 📍 Latest: ${latestCommit.trim()}\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `╔══[❏⧉ *RECENT CHANGES* ⧉❏]\n` +
+                                `║\n` +
+                                commitList + `\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `╔══[❏⧉ *UPDATE NOW* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ 📥 Safe update: /update now\n` +
+                                `║➲ ⚡ Force update: /update force\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `> Powered by 🎭Kelvin🎭`,
+                            edit: checkMsg.key
+                        });
                     } else {
-                        let upToDateText = design.header('UP TO DATE') + '\n';
-                        upToDateText += design.separator() + '\n';
-                        upToDateText += design.item(`✅ ${design.bold('Bot is up to date')}`) + '\n';
-                        upToDateText += design.item(`🌿 ${design.bold('Branch:')} ${branch}`) + '\n';
-                        upToDateText += design.item(`📍 ${design.bold('Commit:')} ${currentCommit.trim()}`) + '\n';
-                        upToDateText += design.item(`🕐 ${design.bold('Checked:')} ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}`) + '\n';
-                        upToDateText += design.footer() + '\n';
-                        upToDateText += '> Powered by 🎭Kelvin🎭';
-
-                        await sock.sendMessage(from, { text: upToDateText, edit: checkMsg.key });
+                        await sock.sendMessage(from, {
+                            text: `╔══[❏⧉ *UP TO DATE* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ ✅ Bot is up to date\n` +
+                                `║➲ 🌿 Branch: ${branch}\n` +
+                                `║➲ 📍 Commit: ${currentCommit.trim()}\n` +
+                                `║➲ 🕐 Checked: ${new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true })}\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `> Powered by 🎭Kelvin🎭`,
+                            edit: checkMsg.key
+                        });
                     }
+
                 } catch (error) {
-                    const errorText = templates.error(`Failed to check updates: ${error.message}\n\nMake sure:\n• Bot is in a Git repository\n• Git is installed\n• Remote is configured`);
-                    await sock.sendMessage(from, { text: errorText, edit: checkMsg.key });
+                    await sock.sendMessage(from, {
+                        text: `╔══[❏⧉ *ERROR* ⧉❏]\n` +
+                            `║\n` +
+                            `║➲ ❌ Failed to check updates\n` +
+                            `║➲ 📝 Error: ${error.message}\n` +
+                            `║\n` +
+                            `║➲ 💡 Make sure:\n` +
+                            `║➲ • Bot is in a Git repository\n` +
+                            `║➲ • Git is installed\n` +
+                            `║➲ • Remote is configured\n` +
+                            `║\n` +
+                            `╚══━━━━━━━━━━━━⧉❏]\n` +
+                            `> Powered by 🎭Kelvin🎭`,
+                        edit: checkMsg.key
+                    });
                 }
             }
 
             // Update now
             else if (action === 'now') {
-                let updatingText = design.header('UPDATING') + '\n';
-                updatingText += design.separator() + '\n';
-                updatingText += design.item('⬇️ ' + design.bold('Pulling latest changes...')) + '\n';
-                updatingText += design.item('🔒 ' + design.bold('Your data is safe')) + '\n';
-                updatingText += design.item('⏳ Please wait...') + '\n';
-                updatingText += design.footer();
-
                 const updateMsg = await sock.sendMessage(from, {
-                    text: updatingText,
+                    text: `╔══[❏⧉ *UPDATING* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ ⬇️ Pulling latest changes...\n` +
+                        `║➲ 🔒 Your data is safe\n` +
+                        `║➲ ⏳ Please wait...\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]`,
                     contextInfo: {
                         forwardingScore: 999,
                         isForwarded: true,
@@ -204,53 +220,86 @@ module.exports = {
                     const { stdout: pullOut } = await execPromise('git pull origin');
 
                     if (pullOut.includes('Already up to date')) {
-                        let noUpdateText = design.header('NO UPDATES') + '\n';
-                        noUpdateText += design.separator() + '\n';
-                        noUpdateText += design.item('✅ ' + design.bold('Already up to date')) + '\n';
-                        noUpdateText += design.item('📝 No changes to pull') + '\n';
-                        noUpdateText += design.footer() + '\n';
-                        noUpdateText += '> Powered by 🎭Kelvin🎭';
-
-                        await sock.sendMessage(from, { text: noUpdateText, edit: updateMsg.key });
+                        await sock.sendMessage(from, {
+                            text: `╔══[❏⧉ *NO UPDATES* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ ✅ Already up to date\n` +
+                                `║➲ 📝 No changes to pull\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `> Powered by 🎭Kelvin🎭`,
+                            edit: updateMsg.key
+                        });
                     } else if (pullOut.includes('error') || pullOut.includes('conflict')) {
-                        const conflictText = templates.error('Update blocked - conflicts found\n\nYour data is safe\n\nOptions:\n• Contact developer\n• Use /update force (risky)');
-                        await sock.sendMessage(from, { text: conflictText, edit: updateMsg.key });
+                        await sock.sendMessage(from, {
+                            text: `╔══[❏⧉ *CONFLICT DETECTED* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ ⚠️ Update blocked - conflicts found\n` +
+                                `║➲ 🔒 Your data is safe\n` +
+                                `║\n` +
+                                `║➲ 💡 Options:\n` +
+                                `║➲ • Contact developer\n` +
+                                `║➲ • Use /update force (risky)\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `> Powered by 🎭Kelvin🎭`,
+                            edit: updateMsg.key
+                        });
                     } else {
-                        let successText = design.header('UPDATE SUCCESS') + '\n';
-                        successText += design.separator() + '\n';
-                        successText += design.item('✅ ' + design.bold('Update successful')) + '\n';
-                        successText += design.item('🔒 ' + design.bold('User data preserved')) + '\n';
-                        successText += design.item('🔄 ' + design.bold('Restarting bot...')) + '\n';
-                        successText += design.item('⏱️ ' + design.bold('Downtime: ~3-5 seconds')) + '\n';
-                        successText += design.separator() + '\n';
-                        successText += design.item('📝 ' + design.bold('Updated:')) + '\n';
-                        successText += design.item(pullOut.split('\n')[0]) + '\n';
-                        successText += design.footer() + '\n';
-                        successText += '> Powered by 🎭Kelvin🎭';
-
-                        await sock.sendMessage(from, { text: successText, edit: updateMsg.key });
+                        await sock.sendMessage(from, {
+                            text: `╔══[❏⧉ *UPDATE SUCCESS* ⧉❏]\n` +
+                                `║\n` +
+                                `║➲ ✅ Update successful\n` +
+                                `║➲ 🔒 User data preserved\n` +
+                                `║➲ 🔄 Restarting bot...\n` +
+                                `║➲ ⏱️ Downtime: ~3-5 seconds\n` +
+                                `║\n` +
+                                `║➲ 📝 Updated:\n` +
+                                `║➲ ${pullOut.split('\n')[0]}\n` +
+                                `║\n` +
+                                `╚══━━━━━━━━━━━━⧉❏]\n` +
+                                `> Powered by 🎭Kelvin🎭`,
+                            edit: updateMsg.key
+                        });
 
                         console.log('🔄 Update successful, restarting bot...');
-                        setTimeout(() => process.exit(0), 2000);
+                        console.log('✅ User files (auth_info, config) are safe');
+
+                        setTimeout(() => {
+                            process.exit(0);
+                        }, 2000);
                     }
+
                 } catch (error) {
-                    const errorText = templates.error(`Update failed: ${error.message}\n\nNo changes made - data safe\n\nTry:\n• /update status\n• Contact developer`);
-                    await sock.sendMessage(from, { text: errorText, edit: updateMsg.key });
+                    await sock.sendMessage(from, {
+                        text: `╔══[❏⧉ *UPDATE FAILED* ⧉❏]\n` +
+                            `║\n` +
+                            `║➲ ❌ Update failed\n` +
+                            `║➲ 🔒 No changes made - data safe\n` +
+                            `║➲ 📝 Error: ${error.message}\n` +
+                            `║\n` +
+                            `║➲ 💡 Try:\n` +
+                            `║➲ • /update status (check status)\n` +
+                            `║➲ • Contact developer\n` +
+                            `║\n` +
+                            `╚══━━━━━━━━━━━━⧉❏]\n` +
+                            `> Powered by 🎭Kelvin🎭`,
+                        edit: updateMsg.key
+                    });
                 }
             }
 
             // Force update
             else if (action === 'force') {
-                let forceText = design.header('FORCE UPDATE') + '\n';
-                forceText += design.separator() + '\n';
-                forceText += design.item('⚡ ' + design.bold('Force updating...')) + '\n';
-                forceText += design.item('⚠️ ' + design.bold('This will discard CODE changes')) + '\n';
-                forceText += design.item('🔒 ' + design.bold('User files still safe (.gitignore)')) + '\n';
-                forceText += design.item('⏳ Please wait...') + '\n';
-                forceText += design.footer();
-
                 const forceMsg = await sock.sendMessage(from, {
-                    text: forceText,
+                    text: `╔══[❏⧉ *FORCE UPDATE* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ ⚡ Force updating...\n` +
+                        `║➲ ⚠️ This will discard CODE changes\n` +
+                        `║➲ 🔒 User files still safe (.gitignore)\n` +
+                        `║➲ ⏳ Please wait...\n` +
+                        `║\n` +
+                        `╚══━━━━━━━━━━━━⧉❏]`,
                     contextInfo: {
                         forwardingScore: 999,
                         isForwarded: true,
@@ -265,27 +314,43 @@ module.exports = {
                 try {
                     const { stdout: branchOut } = await execPromise('git rev-parse --abbrev-ref HEAD');
                     const branch = branchOut.trim();
+
                     await execPromise('git fetch origin');
                     await execPromise(`git reset --hard origin/${branch}`);
                     await execPromise('git clean -fd');
 
-                    let forceSuccessText = design.header('FORCE UPDATE SUCCESS') + '\n';
-                    forceSuccessText += design.separator() + '\n';
-                    forceSuccessText += design.item('✅ ' + design.bold('Force update successful')) + '\n';
-                    forceSuccessText += design.item('⚡ ' + design.bold('Code updated to latest')) + '\n';
-                    forceSuccessText += design.item('🔒 ' + design.bold('User data still safe')) + '\n';
-                    forceSuccessText += design.item('🔄 ' + design.bold('Restarting bot...')) + '\n';
-                    forceSuccessText += design.item('⏱️ ' + design.bold('Downtime: ~3-5 seconds')) + '\n';
-                    forceSuccessText += design.footer() + '\n';
-                    forceSuccessText += '> Powered by 🎭Kelvin🎭';
-
-                    await sock.sendMessage(from, { text: forceSuccessText, edit: forceMsg.key });
+                    await sock.sendMessage(from, {
+                        text: `╔══[❏⧉ *FORCE UPDATE SUCCESS* ⧉❏]\n` +
+                            `║\n` +
+                            `║➲ ✅ Force update successful\n` +
+                            `║➲ ⚡ Code updated to latest\n` +
+                            `║➲ 🔒 User data still safe\n` +
+                            `║➲ 🔄 Restarting bot...\n` +
+                            `║➲ ⏱️ Downtime: ~3-5 seconds\n` +
+                            `║\n` +
+                            `╚══━━━━━━━━━━━━⧉❏]\n` +
+                            `> Powered by 🎭Kelvin🎭`,
+                        edit: forceMsg.key
+                    });
 
                     console.log('🔄 Force update successful, restarting...');
-                    setTimeout(() => process.exit(0), 2000);
+                    console.log('✅ Files in .gitignore are preserved');
+
+                    setTimeout(() => {
+                        process.exit(0);
+                    }, 2000);
+
                 } catch (error) {
-                    const errorText = templates.error(`Force update failed: ${error.message}`);
-                    await sock.sendMessage(from, { text: errorText, edit: forceMsg.key });
+                    await sock.sendMessage(from, {
+                        text: `╔══[❏⧉ *FORCE UPDATE FAILED* ⧉❏]\n` +
+                            `║\n` +
+                            `║➲ ❌ Force update failed\n` +
+                            `║➲ 📝 Error: ${error.message}\n` +
+                            `║\n` +
+                            `╚══━━━━━━━━━━━━⧉❏]\n` +
+                            `> Powered by 🎭Kelvin🎭`,
+                        edit: forceMsg.key
+                    });
                 }
             }
 
@@ -302,23 +367,24 @@ module.exports = {
                     const remote = remoteOut.trim();
                     const hasChanges = statusOut.trim().length > 0;
 
-                    let statusText = design.header('GIT STATUS') + '\n';
-                    statusText += design.separator() + '\n';
-                    statusText += design.item(`🌿 ${design.bold('Branch:')} ${branch}`) + '\n';
-                    statusText += design.item(`📍 ${design.bold('Commit:')} ${commit}`) + '\n';
-                    statusText += design.item(`🔗 ${design.bold('Remote:')} ${remote.replace(/https?:\/\//, '')}`) + '\n';
-                    statusText += design.item(`📝 ${design.bold('Local Changes:')} ${hasChanges ? '⚠️ Yes' : '✅ None'}`) + '\n';
-                    
+                    let statusText = `╔══[❏⧉ *GIT STATUS* ⧉❏]\n` +
+                        `║\n` +
+                        `║➲ 🌿 Branch: ${branch}\n` +
+                        `║➲ 📍 Commit: ${commit}\n` +
+                        `║➲ 🔗 Remote: ${remote.replace(/https?:\/\//, '')}\n` +
+                        `║➲ 📝 Local Changes: ${hasChanges ? '⚠️ Yes' : '✅ None'}\n` +
+                        `║\n`;
+
                     if (hasChanges) {
-                        statusText += design.separator() + '\n';
-                        statusText += design.item('📋 ' + design.bold('Modified files:')) + '\n';
-                        statusOut.trim().split('\n').slice(0, 10).forEach(line => {
-                            statusText += design.item(`• ${line}`) + '\n';
+                        statusText += `║➲ 📋 Modified files:\n`;
+                        statusOut.trim().split('\n').slice(0, 10).forEach(l => {
+                            statusText += `║➲ • ${l}\n`;
                         });
+                        statusText += `║\n`;
                     }
-                    
-                    statusText += design.footer() + '\n';
-                    statusText += '> Powered by 🎭Kelvin🎭';
+
+                    statusText += `╚══━━━━━━━━━━━━⧉❏]\n` +
+                        `> Powered by 🎭Kelvin🎭`;
 
                     await sock.sendMessage(from, {
                         text: statusText,
@@ -332,23 +398,49 @@ module.exports = {
                             }
                         }
                     }, { quoted: msg });
+
                 } catch (error) {
-                    const errorText = templates.error(`Failed to get status: ${error.message}`);
-                    await sock.sendMessage(from, { text: errorText }, { quoted: msg });
+                    await sock.sendMessage(from, {
+                        text: `╔══[❏⧉ *ERROR* ⧉❏]\n` +
+                            `║\n` +
+                            `║➲ ❌ Failed to get status\n` +
+                            `║➲ 📝 Error: ${error.message}\n` +
+                            `║\n` +
+                            `╚══━━━━━━━━━━━━⧉❏]\n` +
+                            `> Powered by 🎭Kelvin🎭`,
+                        contextInfo: {
+                            forwardingScore: 999,
+                            isForwarded: true,
+                            forwardedNewsletterMessageInfo: {
+                                newsletterJid: "120363418958316196@newsletter",
+                                newsletterName: "🎭 Kelvin Tech",
+                                serverMessageId: 200
+                            }
+                        }
+                    }, { quoted: msg });
                 }
             }
 
         } catch (error) {
             console.error('❌ Update command error:', error);
-            const errorText = templates.error(`Command failed: ${error.message}`);
-            await sock.sendMessage(from, { text: errorText }, { quoted: msg });
+            await sock.sendMessage(from, {
+                text: `╔══[❏⧉ *ERROR* ⧉❏]\n` +
+                    `║\n` +
+                    `║➲ ❌ Command failed\n` +
+                    `║➲ 📝 Error: ${error.message}\n` +
+                    `║\n` +
+                    `╚══━━━━━━━━━━━━⧉❏]\n` +
+                    `> Powered by 🎭Kelvin🎭`,
+                contextInfo: {
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: "120363418958316196@newsletter",
+                        newsletterName: "🎭 Kelvin Tech",
+                        serverMessageId: 200
+                    }
                 }
-            }
-
-        } catch (error) {
-            console.error('❌ Update command error:', error);
-            const errorText = templates.error(`Command failed: ${error.message}`);
-            await sock.sendMessage(from, { text: errorText }, { quoted: msg });
+            }, { quoted: msg });
         }
     }
 };
