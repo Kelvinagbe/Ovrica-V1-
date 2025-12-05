@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
 module.exports = {
     name: 'vv',
@@ -7,10 +7,16 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin) => {
         try {
-            // Check if replying to a message
-            const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+            // Extract quoted message with multiple fallbacks
+            let quotedNode = null;
+            
+            if (msg.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+                quotedNode = msg.message.extendedTextMessage.contextInfo.quotedMessage;
+            } else if (msg.quoted) {
+                quotedNode = msg.quoted;
+            }
 
-            if (!quotedMsg) {
+            if (!quotedNode) {
                 return await sock.sendMessage(from, {
                     text: `┌ ❏ *⌜ VIEW ONCE REVEALER ⌟* ❏\n` +
                         `│\n` +
@@ -26,18 +32,34 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            // Extract view once message (latest Baileys format)
-            let viewOnceMsg = null;
-            
-            if (quotedMsg.viewOnceMessageV2?.message) {
-                viewOnceMsg = quotedMsg.viewOnceMessageV2.message;
-            } else if (quotedMsg.viewOnceMessageV2Extension?.message) {
-                viewOnceMsg = quotedMsg.viewOnceMessageV2Extension.message;
-            } else if (quotedMsg.viewOnceMessage?.message) {
-                viewOnceMsg = quotedMsg.viewOnceMessage.message;
+            // Find view-once wrapper (check all possible formats)
+            let viewOnceWrapper =
+                quotedNode.viewOnceMessage ||
+                quotedNode.viewOnceMessageV2 ||
+                quotedNode.viewOnceMessageV2Extension ||
+                (quotedNode.message && (
+                    quotedNode.message.viewOnceMessage ||
+                    quotedNode.message.viewOnceMessageV2 ||
+                    quotedNode.message.viewOnceMessageV2Extension
+                )) ||
+                null;
+
+            // Extract inner payload
+            let innerPayload = null;
+            if (viewOnceWrapper) {
+                innerPayload = viewOnceWrapper.message || viewOnceWrapper;
+            } else {
+                innerPayload = quotedNode.message || quotedNode;
             }
 
-            if (!viewOnceMsg) {
+            // Find the actual media node
+            const innerNode =
+                innerPayload.imageMessage ||
+                innerPayload.videoMessage ||
+                innerPayload.audioMessage ||
+                null;
+
+            if (!innerNode) {
                 return await sock.sendMessage(from, {
                     text: `❌ *Not a view once message!*\n\n` +
                         `This appears to be a regular message.\n\n` +
@@ -51,11 +73,17 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            // Check media type
-            const isImage = !!viewOnceMsg.imageMessage;
-            const isVideo = !!viewOnceMsg.videoMessage;
+            // Determine media type
+            let mediaType = null;
+            if (innerPayload.imageMessage || innerNode?.mimetype?.startsWith?.("image")) {
+                mediaType = "image";
+            } else if (innerPayload.videoMessage || innerNode?.mimetype?.startsWith?.("video")) {
+                mediaType = "video";
+            } else if (innerPayload.audioMessage || innerNode?.mimetype?.startsWith?.("audio")) {
+                mediaType = "audio";
+            }
 
-            if (!isImage && !isVideo) {
+            if (!mediaType) {
                 return await sock.sendMessage(from, {
                     text: `❌ *Unsupported view once type!*\n\n` +
                         `✅ Supported:\n` +
@@ -66,7 +94,7 @@ module.exports = {
                 }, { quoted: msg });
             }
 
-            const mediaType = isImage ? 'image' : 'video';
+            // Get sender info
             const contextInfo = msg.message.extendedTextMessage.contextInfo;
             const sender = contextInfo.participant || from;
             const senderNumber = sender.split('@')[0];
@@ -79,67 +107,63 @@ module.exports = {
                     `📱 Number: +${senderNumber}`
             }, { quoted: msg });
 
+            // Download media using streams (more reliable)
+            let buffer = null;
+            
             try {
-                // Get the media message
-                const mediaMsg = isImage ? viewOnceMsg.imageMessage : viewOnceMsg.videoMessage;
-
-                // Create a proper message structure for downloading
-                const messageForDownload = {
-                    key: {
-                        remoteJid: from,
-                        id: contextInfo.stanzaId,
-                        participant: sender
-                    },
-                    message: viewOnceMsg
-                };
-
-                // Download the media
-                const buffer = await downloadMediaMessage(
-                    messageForDownload,
-                    'buffer',
-                    {},
-                    {
-                        logger: console,
-                        reuploadRequest: sock.updateMediaMessage
-                    }
-                );
-
-                const sizeKB = (buffer.length / 1024).toFixed(2);
-                const originalCaption = mediaMsg.caption || '';
-
-                // Build reveal message
-                const caption = 
-                    `┌ ❏ *⌜ VIEW ONCE REVEALED ⌟* ❏\n` +
-                    `│\n` +
-                    `├◆ 👀 *Successfully Revealed!*\n` +
-                    `├◆ 📝 *Type:* ${mediaType.toUpperCase()}\n` +
-                    `├◆ 👤 *From:* ${senderName}\n` +
-                    `├◆ 📱 *Number:* +${senderNumber}\n` +
-                    `├◆ 📦 *Size:* ${sizeKB} KB\n` +
-                    (originalCaption ? `├◆ 💬 *Caption:* ${originalCaption}\n` : '') +
-                    `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { hour12: true })}\n` +
-                    `│\n` +
-                    `├◆ ✅ Here's what they sent!\n` +
-                    `│\n` +
-                    `└ ❏\n` +
-                    `> Powered by 🎭Kelvin🎭`;
-
-                // Send the revealed media
-                if (mediaType === 'image') {
-                    await sock.sendMessage(from, {
-                        image: buffer,
-                        caption: caption
-                    });
-                } else {
-                    await sock.sendMessage(from, {
-                        video: buffer,
-                        caption: caption,
-                        gifPlayback: mediaMsg.gifPlayback || false
-                    });
+                const stream = await downloadContentFromMessage(innerNode, mediaType);
+                let tmp = Buffer.from([]);
+                for await (const chunk of stream) {
+                    tmp = Buffer.concat([tmp, chunk]);
                 }
+                buffer = tmp;
+            } catch (err) {
+                console.error("Download error:", err);
+                throw new Error("Failed to download media");
+            }
 
-            } catch (downloadError) {
-                throw new Error(`Download failed: ${downloadError.message}`);
+            if (!buffer || buffer.length === 0) {
+                throw new Error("Downloaded media is empty");
+            }
+
+            const sizeKB = (buffer.length / 1024).toFixed(2);
+            const originalCaption = innerNode.caption || '';
+
+            // Build reveal message
+            const caption = 
+                `┌ ❏ *⌜ VIEW ONCE REVEALED ⌟* ❏\n` +
+                `│\n` +
+                `├◆ 👀 *Successfully Revealed!*\n` +
+                `├◆ 📝 *Type:* ${mediaType.toUpperCase()}\n` +
+                `├◆ 👤 *From:* ${senderName}\n` +
+                `├◆ 📱 *Number:* +${senderNumber}\n` +
+                `├◆ 📦 *Size:* ${sizeKB} KB\n` +
+                (originalCaption ? `├◆ 💬 *Caption:* ${originalCaption}\n` : '') +
+                `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { hour12: true })}\n` +
+                `│\n` +
+                `├◆ ✅ Here's what they sent!\n` +
+                `│\n` +
+                `└ ❏\n` +
+                `> Powered by 🎭Kelvin🎭`;
+
+            // Send the revealed media
+            if (mediaType === 'image') {
+                await sock.sendMessage(from, {
+                    image: buffer,
+                    caption: caption
+                });
+            } else if (mediaType === 'video') {
+                await sock.sendMessage(from, {
+                    video: buffer,
+                    caption: caption,
+                    gifPlayback: innerNode.gifPlayback || false
+                });
+            } else if (mediaType === 'audio') {
+                await sock.sendMessage(from, {
+                    audio: buffer,
+                    mimetype: innerNode.mimetype || "audio/mp4",
+                    ptt: innerNode.ptt || false
+                });
             }
 
         } catch (error) {
