@@ -42,9 +42,9 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
 
-        const CONFIG = require('../config');
+        const CONFIG = require('@/config');
 
-        const messageQueue = require('../index').messageQueue;
+        const messageQueue = require('@/index').messageQueue;
 
         const uptime = process.uptime();
 
