@@ -14,7 +14,7 @@
 
     "postinstall": "npm run setup",
 
-    "setup": "node -e \"const fs = require('fs'); const dirs = ['auth_info_baileys']; dirs.forEach(dir => { if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); console.log('✅ Created ' + dir + ' directory'); } });\"",
+      "setup": "node -e \"const fs = require('fs'); const dirs = ['logs', 'auth_info']; dirs.forEach(dir => { if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); console.log('✅ Created ' + dir + ' directory'); } });\"",
 
     "start": "node index.js",
 
