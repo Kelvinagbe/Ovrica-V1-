@@ -3,7 +3,7 @@ const { templates } = require('../tmp/templates');
 const axios = require('axios');
 
 module.exports = {
-    name: 'image',
+    name: 'imgsrch',
     aliases: ['img', 'gimage'],
     description: 'Search and download images from Google',
     usage: '.image <search query>',
