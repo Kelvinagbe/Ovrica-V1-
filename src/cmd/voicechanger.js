@@ -7,7 +7,7 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const execAsync = promisify(exec);
 
 module.exports = {
-    name: 'voicechange',
+    name: 'vchg',
     admin: false,
     description: 'Change voice effects',
  
