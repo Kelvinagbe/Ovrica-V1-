@@ -1,4 +1,3 @@
-// commands/ping.js - Ping command to check bot response time
 const fs = require('fs');
 const path = require('path');
 
@@ -19,12 +18,9 @@ module.exports = {
             const endTime = Date.now();
             const responseTime = endTime - startTime;
 
-            // Get system uptime
-            const uptime = process.uptime();
-            const days = Math.floor(uptime / 86400);
-            const hours = Math.floor((uptime % 86400) / 3600);
-            const minutes = Math.floor((uptime % 3600) / 60);
-            const seconds = Math.floor(uptime % 60);
+            // Get memory usage
+            const memUsage = process.memoryUsage();
+            const memUsageMB = (memUsage.heapUsed / 1024 / 1024).toFixed(2);
 
             // Determine speed emoji and status
             let speedEmoji = '🟢';
@@ -42,18 +38,10 @@ module.exports = {
                 `│\n` +
                 `├◆ ${speedEmoji} *${responseTime}ms*\n` +
                 `├◆ 📊 *${speedStatus}*\n` +
+                `├◆ 💾 *Memory: ${memUsageMB} MB*\n` +
                 `│\n` +
                 `└ ❏\n` +
                 `> Powered by 𝐊𝐄𝐋𝐕𝐈𝐍 𝐀𝐆𝐁𝐄`;
-
-            // Delete the "Pinging..." message first
-            try {
-                await sock.sendMessage(from, {
-                    delete: sentMsg.key
-                });
-            } catch (e) {
-                console.log('Could not delete ping message');
-            }
 
             // Load local thumbnail
             const thumbnailPath = path.join(process.cwd(), 'assets', 'app.png');
@@ -68,6 +56,7 @@ module.exports = {
             // Prepare message options
             const messageOptions = {
                 text: pingMessage,
+                edit: sentMsg.key,
                 contextInfo: {
                     forwardingScore: 999,
                     isForwarded: true,
@@ -91,8 +80,8 @@ module.exports = {
                 };
             }
 
-            // Send the final result
-            await sock.sendMessage(from, messageOptions, { quoted: msg });
+            // Edit the message with final result
+            await sock.sendMessage(from, messageOptions);
 
             console.log(`🏓 Ping: ${responseTime}ms from ${from}`);
 
