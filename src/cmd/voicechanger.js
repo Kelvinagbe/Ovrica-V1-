@@ -10,7 +10,7 @@ module.exports = {
     name: 'voicechange',
     admin: false,
     description: 'Change voice effects',
-
+ 
     exec: async (sock, from, args, msg, isAdmin) => {
         let inputPath, outputPath;
         
