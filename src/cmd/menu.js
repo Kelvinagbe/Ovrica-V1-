@@ -1,12 +1,10 @@
-// commands/menu.js - Main menu with fancy reply using local image
-
 const { templates } = require('@/src/tmp/templates');
 const fs = require('fs');
 const path = require('path');
 
 function getBotInfo(config) {
     return {
-        name: '    "𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
+        name: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
         owner: 'KELVIN AGBE',
         prefix: '/',
         user: 'User',
@@ -26,12 +24,103 @@ function getBotInfo(config) {
 module.exports = {
     name: 'menu',
     admin: false,
-    description: 'Show main menu',
+    description: 'Show main menu with interactive buttons',
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         try {
-            // Helper function for fancy reply
-            const sendFancyReply = async (text, imagePath = null, quoted = msg) => {
+            const CONFIG = require('@/config');
+            const botInfo = getBotInfo(CONFIG);
+            
+            // Create the menu text
+            const menuText = templates.menu(botInfo);
+            
+            // Define buttons for the menu
+            const buttons = [
+                {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                        display_text: "👤 Owner Menu",
+                        id: ".ownermenu"
+                    })
+                },
+                {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                        display_text: "📋 Main Menu",
+                        id: ".mainmenu"
+                    })
+                },
+                {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                        display_text: "👥 Group Menu",
+                        id: ".groupmenu"
+                    })
+                }
+            ];
+
+            // Prepare context info for fancy reply
+            const contextInfo = {
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: "120363418958316196@newsletter",
+                    newsletterName: "𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏",
+                    serverMessageId: 200
+                }
+            };
+
+            // Path to image
+            const imagePath = path.join(__dirname, '../../assets/app.png');
+            
+            // Check if image exists
+            let imageBuffer = null;
+            if (fs.existsSync(imagePath)) {
+                imageBuffer = fs.readFileSync(imagePath);
+            }
+
+            // Send interactive message with buttons
+            const interactiveMessage = {
+                body: { text: menuText },
+                footer: { text: "© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API" },
+                header: imageBuffer ? {
+                    title: "🤖 Bot Menu",
+                    hasMediaAttachment: true,
+                    imageMessage: await sock.generateWAMessageContent(
+                        { image: imageBuffer },
+                        { upload: sock.waUploadToServer }
+                    ).then(img => img.imageMessage)
+                } : {
+                    title: "🤖 Bot Menu",
+                    hasMediaAttachment: false
+                },
+                nativeFlowMessage: {
+                    buttons: buttons,
+                    messageParamsJson: ""
+                }
+            };
+
+            // Send the message
+            await sock.sendMessage(from, {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: interactiveMessage,
+                        contextInfo: contextInfo
+                    }
+                }
+            }, { quoted: msg });
+
+            console.log(`📱 Interactive menu sent to ${from}`);
+
+        } catch (error) {
+            console.error('❌ Menu command error:', error);
+            
+            // Fallback to simple text message if interactive fails
+            try {
+                const CONFIG = require('@/config');
+                const text = templates.menu(getBotInfo(CONFIG));
+                const imagePath = path.join(__dirname, '../../assets/app.png');
+                
                 const contextInfo = {
                     forwardingScore: 999,
                     isForwarded: true,
@@ -42,39 +131,22 @@ module.exports = {
                     }
                 };
 
-                // If image path provided, send as image with caption
-                if (imagePath) {
-                    // Check if file exists before reading
-                    if (fs.existsSync(imagePath)) {
-                        return await sock.sendMessage(from, {
-                            image: fs.readFileSync(imagePath),
-                            caption: text,
-                            contextInfo: contextInfo
-                        }, { quoted: quoted });
-                    } else {
-                        console.warn(`⚠️ Image not found at ${imagePath}, sending text only`);
-                    }
+                if (fs.existsSync(imagePath)) {
+                    await sock.sendMessage(from, {
+                        image: fs.readFileSync(imagePath),
+                        caption: text + "\n\n*Quick Commands:*\n• .ownermenu - Owner commands\n• .mainmenu - Main commands\n• .groupmenu - Group commands",
+                        contextInfo: contextInfo
+                    }, { quoted: msg });
+                } else {
+                    await sock.sendMessage(from, {
+                        text: text + "\n\n*Quick Commands:*\n• .ownermenu - Owner commands\n• .mainmenu - Main commands\n• .groupmenu - Group commands",
+                        contextInfo: contextInfo
+                    }, { quoted: msg });
                 }
-
-                // Send as text with fancy reply (fallback or default)
-                return await sock.sendMessage(from, {
-                    text: text,
-                    contextInfo: contextInfo
-                }, { quoted: quoted });
-            };
-
-            const CONFIG = require('@/config');
-            const text = templates.menu(getBotInfo(CONFIG));
-
-            // Use path.join to properly resolve image path
-            const imagePath = path.join(__dirname, '../../assets/app.png');
-            await sendFancyReply(text, imagePath);
-
-            console.log(`📱 Menu sent to ${from}`);
-
-        } catch (error) {
-            console.error('❌ Menu command error:', error);
-            await sendWithTyping(sock, from, '❌ Failed to load menu. Please try again!');
+            } catch (fallbackError) {
+                console.error('❌ Fallback failed:', fallbackError);
+                await sendWithTyping(sock, from, '❌ Failed to load menu. Please try again!');
+            }
         }
     }
 };
