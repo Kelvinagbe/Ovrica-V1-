@@ -44,21 +44,21 @@ Select a category below:`;
                             name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "👤 Owner Menu",
-                                copy_code: ".ownermenu"
+                                copy_code: "/ownermenu"
                             })
                         },
                         {
                             name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "📋 Main Menu",
-                                copy_code: ".mainmenu"
+                                copy_code: "/mainmenu"
                             })
                         },
                         {
                             name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "👥 Group Menu",
-                                copy_code: ".groupmenu"
+                                copy_code: "/groupmenu"
                             })
                         }
                     ]
