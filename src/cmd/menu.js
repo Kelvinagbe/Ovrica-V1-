@@ -23,47 +23,42 @@ module.exports = {
 Select a category below:`;
 
             const imagePath = path.join(__dirname, '../../assets/app.png');
-            let imageMessage = null;
-
-            if (fs.existsSync(imagePath)) {
-                imageMessage = (await generateWAMessageContent(
-                    { image: fs.readFileSync(imagePath) },
-                    { upload: sock.waUploadToServer }
-                )).imageMessage;
-            }
-
+            
             const card = {
-                header: imageMessage ? {
+                header: {
                     title: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                     hasMediaAttachment: true,
-                    imageMessage: imageMessage
-                } : {
-                    title: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
-                    hasMediaAttachment: false
+                    imageMessage: (await generateWAMessageContent({ 
+                        image: fs.readFileSync(imagePath) 
+                    }, {
+                        upload: sock.waUploadToServer
+                    })).imageMessage
                 },
-                body: { text: menuText },
-                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏' },
+                body: {
+                    text: menuText
+                },
+                footer: { text: "© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏" },
                 nativeFlowMessage: {
                     buttons: [
                         {
-                            name: 'quick_reply',
+                            name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
-                                display_text: '👤 Owner Menu',
-                                id: '.ownermenu'
+                                display_text: "👤 Owner Menu",
+                                copy_code: ".ownermenu"
                             })
                         },
                         {
-                            name: 'quick_reply',
+                            name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
-                                display_text: '📋 Main Menu',
-                                id: '.mainmenu'
+                                display_text: "📋 Main Menu",
+                                copy_code: ".mainmenu"
                             })
                         },
                         {
-                            name: 'quick_reply',
+                            name: "cta_copy",
                             buttonParamsJson: JSON.stringify({
-                                display_text: '👥 Group Menu',
-                                id: '.groupmenu'
+                                display_text: "👥 Group Menu",
+                                copy_code: ".groupmenu"
                             })
                         }
                     ]
@@ -78,32 +73,18 @@ Select a category below:`;
                             deviceListMetadataVersion: 2
                         },
                         interactiveMessage: {
-                            carouselMessage: {
-                                cards: [card]
-                            }
+                            body: { text: `🤖 ${menuText.split('\n')[0]}` },
+                            footer: { text: `Select a menu option` },
+                            carouselMessage: { cards: [card] }
                         }
                     }
                 }
             }, { quoted: msg });
 
-            await sock.relayMessage(from, message.message, { 
-                messageId: message.key.id,
-                participant: { jid: from }
-            });
+            await sock.relayMessage(from, message.message, { messageId: message.key.id });
 
         } catch (error) {
             console.error('❌ Menu error:', error);
-            await sendWithTyping(sock, from, `╔══[❏⧉ */ BOT MENU* ⧉❏]
-║
-║➲ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
-║➲ *Owner:* KELVIN AGBE
-║
-║ *Quick Commands:*
-║➲ .ownermenu
-║➲ .mainmenu
-║➲ .groupmenu
-║
-╚══━━━━━━━━━━━━⧉❏]`);
         }
     }
 };
