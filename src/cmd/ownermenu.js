@@ -1,7 +1,5 @@
-const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
-
 module.exports = {
-    name: 'Owner Menu',
+    name: 'ownermenu',
     admin: true,
     description: 'Owner commands',
     
@@ -28,7 +26,6 @@ module.exports = {
 ║
 ╚══━━━━━━━━━━━━⧉❏]`;
         
-        // Send with contextInfo
         await sock.sendMessage(from, {
             text: text,
             contextInfo: {
