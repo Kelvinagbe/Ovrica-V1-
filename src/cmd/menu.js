@@ -10,7 +10,7 @@ module.exports = {
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         try {
             // Menu text with custom symbols
-            const menuText = `╔══[❏⧉ *🤖 BOT MENU* ⧉❏]
+            const menuText = `╔══[❏⧉ */ BOT MENU* ⧉❏]
 ║
 ║➲ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
 ║➲ *Owner:* KELVIN AGBE
@@ -38,35 +38,35 @@ Select a category below:`;
             // Create a single card with buttons
             const card = {
                 header: imageMessage ? {
-                    title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
+                    title: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                     hasMediaAttachment: true,
                     imageMessage: imageMessage
                 } : {
-                    title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
+                    title: '𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                     hasMediaAttachment: false
                 },
                 body: { text: menuText },
-                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
+                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏' },
                 nativeFlowMessage: {
                     buttons: [
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
-                                display_text: '👤 Owner Menu',
+                                display_text: '/Owner Menu',
                                 id: '.ownermenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
-                                display_text: '📋 Main Menu',
+                                display_text: '/Main Menu',
                                 id: '.mainmenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
-                                display_text: '👥 Group Menu',
+                                display_text: '/Group Menu',
                                 id: '.groupmenu'
                             })
                         }
@@ -74,7 +74,7 @@ Select a category below:`;
                 }
             };
 
-            // Use carousel format with forwarding context
+            // Use carousel format without the wrapper message
             const message = generateWAMessageFromContent(from, {
                 viewOnceMessage: {
                     message: {
@@ -83,11 +83,6 @@ Select a category below:`;
                             deviceListMetadataVersion: 2
                         },
                         interactiveMessage: {
-                            body: { text: '📋 Bot Menu' },
-                            footer: { text: 'Select a category' },
-                            header: {
-                                hasMediaAttachment: false
-                            },
                             contextInfo: {
                                 forwardingScore: 999,
                                 isForwarded: true,
