@@ -1,5 +1,3 @@
-// commands/menu.js - Working buttons using proper Baileys methods
-
 const fs = require('fs');
 const path = require('path');
 const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
@@ -11,17 +9,17 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         try {
-            // Menu text
-            const menuText = `╭━━━━『 🤖 BOT MENU 』━━━━╮
-│
-│ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
-│ *Owner:* KELVIN AGBE
-│ *Version:* 1.0.0
-│ *Prefix:* /
-│ *Mode:* Public
-│ *Commands:* 2550+
-│
-╰━━━━━━━━━━━━━━━━━━━━╯
+            // Menu text with custom symbols
+            const menuText = `╔══[❏⧉ *🤖 BOT MENU* ⧉❏]
+║
+║➲ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
+║➲ *Owner:* KELVIN AGBE
+║➲ *Version:* 1.0.0
+║➲ *Prefix:* /
+║➲ *Mode:* Public
+║➲ *Commands:* 2550+
+║
+╚══━━━━━━━━━━━━⧉❏]
 
 Select a category below:`;
 
@@ -31,18 +29,13 @@ Select a category below:`;
             // Generate image message if exists
             let imageMessage = null;
             if (fs.existsSync(imagePath)) {
-                try {
-                    imageMessage = (await generateWAMessageContent(
-                        { image: fs.readFileSync(imagePath) },
-                        { upload: sock.waUploadToServer }
-                    )).imageMessage;
-                    console.log('✅ Image loaded');
-                } catch (imgError) {
-                    console.error('⚠️ Image error:', imgError.message);
-                }
+                imageMessage = (await generateWAMessageContent(
+                    { image: fs.readFileSync(imagePath) },
+                    { upload: sock.waUploadToServer }
+                )).imageMessage;
             }
 
-            // Create a single card (like YTS but just one card)
+            // Create a single card with buttons
             const card = {
                 header: imageMessage ? {
                     title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
@@ -53,7 +46,7 @@ Select a category below:`;
                     hasMediaAttachment: false
                 },
                 body: { text: menuText },
-                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏' },
+                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
                 nativeFlowMessage: {
                     buttons: [
                         {
@@ -81,7 +74,7 @@ Select a category below:`;
                 }
             };
 
-            // Use carousel format (even with 1 card) - exactly like YTS
+            // Use carousel format with forwarding context
             const message = generateWAMessageFromContent(from, {
                 viewOnceMessage: {
                     message: {
@@ -92,6 +85,18 @@ Select a category below:`;
                         interactiveMessage: {
                             body: { text: '📋 Bot Menu' },
                             footer: { text: 'Select a category' },
+                            header: {
+                                hasMediaAttachment: false
+                            },
+                            contextInfo: {
+                                forwardingScore: 999,
+                                isForwarded: true,
+                                forwardedNewsletterMessageInfo: {
+                                    newsletterJid: "120363418958316196@newsletter",
+                                    newsletterName: "𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏",
+                                    serverMessageId: 200
+                                }
+                            },
                             carouselMessage: {
                                 cards: [card]
                             }
@@ -100,12 +105,9 @@ Select a category below:`;
                 }
             }, { quoted: msg });
 
-            // Send the message
-            const sentMsg = await sock.relayMessage(from, message.message, { messageId: message.key.id });
-            
+            await sock.relayMessage(from, message.message, { messageId: message.key.id });
+
             console.log(`📱 Menu sent to ${from}`);
-            console.log(`Message ID: ${message.key.id}`);
-            console.log(`Sent status:`, sentMsg ? 'Success' : 'Failed');
 
         } catch (error) {
             console.error('❌ Button menu failed:', error);
@@ -126,8 +128,3 @@ Select a category below:`;
         }
     }
 };
-
-// ============================================
-// Sub-menu handlers
-// ============================================
-
