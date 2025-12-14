@@ -1,5 +1,3 @@
-const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
-
 module.exports = {
     name: 'mainmenu',
     admin: false,
@@ -9,33 +7,32 @@ module.exports = {
         const text = `╔══[❏⧉ *📋 MAIN MENU* ⧉❏]
 ║
 ║ *Media Download:*
-║➲ .play - Download audio/video
-║➲ .ytmp3 - YouTube to MP3
-║➲ .ytmp4 - YouTube to MP4
-║➲ .song - Search & download
-║➲ .video - Download video
+║➲ /play - Download audio/video
+║➲ /ytmp3 - YouTube to MP3
+║➲ /ytmp4 - YouTube to MP4
+║➲ /song - Search & download
+║➲ /video - Download video
 ║
 ║ *Search:*
-║➲ .yts - YouTube search
-║➲ .img - Image search
-║➲ .google - Google search
-║➲ .wiki - Wikipedia search
+║➲ /yts - YouTube search
+║➲ /img - Image search
+║➲ /google - Google search
+║➲ /wiki - Wikipedia search
 ║
 ║ *Convert:*
-║➲ .sticker - Create sticker
-║➲ .toimg - Sticker to image
-║➲ .tomp3 - Video to audio
-║➲ .tovideo - Image to video
+║➲ /sticker - Create sticker
+║➲ /toimg - Sticker to image
+║➲ /tomp3 - Video to audio
+║➲ /tovideo - Image to video
 ║
 ║ *Tools:*
-║➲ .weather - Get weather
-║➲ .translate - Translate text
-║➲ .qr - Generate QR code
-║➲ .tts - Text to speech
+║➲ /weather - Get weather
+║➲ /translate - Translate text
+║➲ /qr - Generate QR code
+║➲ /tts - Text to speech
 ║
 ╚══━━━━━━━━━━━━⧉❏]`;
         
-        // Send with contextInfo
         await sock.sendMessage(from, {
             text: text,
             contextInfo: {
@@ -57,4 +54,3 @@ module.exports = {
         }, { quoted: msg });
     }
 };
-
