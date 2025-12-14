@@ -29,10 +29,17 @@ Select a category below:`;
             // Generate image message if exists
             let imageMessage = null;
             if (fs.existsSync(imagePath)) {
-                imageMessage = (await generateWAMessageContent(
-                    { image: fs.readFileSync(imagePath) },
-                    { upload: sock.waUploadToServer }
-                )).imageMessage;
+                try {
+                    imageMessage = (await generateWAMessageContent(
+                        { image: fs.readFileSync(imagePath) },
+                        { upload: sock.waUploadToServer }
+                    )).imageMessage;
+                    console.log('✅ Image loaded successfully');
+                } catch (imgError) {
+                    console.error('⚠️ Image load failed:', imgError);
+                }
+            } else {
+                console.log('⚠️ Image not found at:', imagePath);
             }
 
             // Create the interactive message exactly like your YTS code
@@ -44,15 +51,16 @@ Select a category below:`;
                             deviceListMetadataVersion: 2
                         },
                         interactiveMessage: {
+                            body: { text: menuText },
+                            footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
                             header: imageMessage ? {
                                 title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
                                 hasMediaAttachment: true,
                                 imageMessage: imageMessage
                             } : {
-                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏'
+                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
+                                hasMediaAttachment: false
                             },
-                            body: { text: menuText },
-                            footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
                             nativeFlowMessage: {
                                 buttons: [
                                     {
@@ -76,13 +84,17 @@ Select a category below:`;
                                             id: '.groupmenu'
                                         })
                                     }
-                                ]
+                                ],
+                                messageParamsJson: ''
                             }
                         }
                     }
                 }
             }, { quoted: msg });
 
+            // Debug: Log the message structure
+            console.log('Message structure:', JSON.stringify(message.message, null, 2));
+            
             await sock.relayMessage(from, message.message, { messageId: message.key.id });
 
             console.log(`📱 Menu with buttons sent to ${from}`);
