@@ -1,7 +1,5 @@
-const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
-
 module.exports = {
-    name: 'group menu',
+    name: 'groupmenu',
     admin: false,
     description: 'Group commands',
     
@@ -33,7 +31,6 @@ module.exports = {
 ║
 ╚══━━━━━━━━━━━━⧉❏]`;
         
-        // Send with contextInfo
         await sock.sendMessage(from, {
             text: text,
             contextInfo: {
