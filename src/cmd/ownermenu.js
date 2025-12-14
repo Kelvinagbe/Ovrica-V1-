@@ -7,22 +7,22 @@ module.exports = {
         const text = `╔══[❏⧉ *👤 OWNER MENU* ⧉❏]
 ║
 ║ *Bot Management:*
-║➲ .setbio - Set bot bio
-║➲ .setname - Change bot name
-║➲ .setpp - Change profile pic
-║➲ .restart - Restart bot
-║➲ .shutdown - Shutdown bot
+║➲ /setbio - Set bot bio
+║➲ /setname - Change bot name
+║➲ /setpp - Change profile pic
+║➲ /restart - Restart bot
+║➲ /shutdown - Shutdown bot
 ║
 ║ *User Management:*
-║➲ .block - Block user
-║➲ .unblock - Unblock user
-║➲ .broadcast - Send to all
+║➲ /block - Block user
+║➲ /unblock - Unblock user
+║➲ /broadcast - Send to all
 ║➲ .clearall - Clear all chats
 ║
 ║ *System:*
-║➲ .update - Update bot
-║➲ .eval - Run code
-║➲ .exec - Execute command
+║➲ /update - Update bot
+║➲ /eval - Run code
+║➲ /exec - Execute command
 ║
 ╚══━━━━━━━━━━━━⧉❏]`;
         
