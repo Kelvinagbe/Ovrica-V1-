@@ -1,7 +1,7 @@
 const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
 
 module.exports = {
-    name: 'GroupMenu',
+    name: 'group menu',
     admin: false,
     description: 'Group commands',
     
