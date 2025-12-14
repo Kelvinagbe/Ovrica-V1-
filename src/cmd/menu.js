@@ -1,3 +1,5 @@
+// commands/menu.js - Working buttons using proper Baileys methods
+
 const fs = require('fs');
 const path = require('path');
 const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
@@ -34,15 +36,52 @@ Select a category below:`;
                         { image: fs.readFileSync(imagePath) },
                         { upload: sock.waUploadToServer }
                     )).imageMessage;
-                    console.log('✅ Image loaded successfully');
+                    console.log('✅ Image loaded');
                 } catch (imgError) {
-                    console.error('⚠️ Image load failed:', imgError);
+                    console.error('⚠️ Image error:', imgError.message);
                 }
-            } else {
-                console.log('⚠️ Image not found at:', imagePath);
             }
 
-            // Create the interactive message exactly like your YTS code
+            // Create a single card (like YTS but just one card)
+            const card = {
+                header: imageMessage ? {
+                    title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
+                    hasMediaAttachment: true,
+                    imageMessage: imageMessage
+                } : {
+                    title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
+                    hasMediaAttachment: false
+                },
+                body: { text: menuText },
+                footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏' },
+                nativeFlowMessage: {
+                    buttons: [
+                        {
+                            name: 'quick_reply',
+                            buttonParamsJson: JSON.stringify({
+                                display_text: '👤 Owner Menu',
+                                id: '.ownermenu'
+                            })
+                        },
+                        {
+                            name: 'quick_reply',
+                            buttonParamsJson: JSON.stringify({
+                                display_text: '📋 Main Menu',
+                                id: '.mainmenu'
+                            })
+                        },
+                        {
+                            name: 'quick_reply',
+                            buttonParamsJson: JSON.stringify({
+                                display_text: '👥 Group Menu',
+                                id: '.groupmenu'
+                            })
+                        }
+                    ]
+                }
+            };
+
+            // Use carousel format (even with 1 card) - exactly like YTS
             const message = generateWAMessageFromContent(from, {
                 viewOnceMessage: {
                     message: {
@@ -51,53 +90,22 @@ Select a category below:`;
                             deviceListMetadataVersion: 2
                         },
                         interactiveMessage: {
-                            body: { text: menuText },
-                            footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
-                            header: imageMessage ? {
-                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
-                                hasMediaAttachment: true,
-                                imageMessage: imageMessage
-                            } : {
-                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
-                                hasMediaAttachment: false
-                            },
-                            nativeFlowMessage: {
-                                buttons: [
-                                    {
-                                        name: 'quick_reply',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: '👤 Owner Menu',
-                                            id: '.ownermenu'
-                                        })
-                                    },
-                                    {
-                                        name: 'quick_reply',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: '📋 Main Menu',
-                                            id: '.mainmenu'
-                                        })
-                                    },
-                                    {
-                                        name: 'quick_reply',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: '👥 Group Menu',
-                                            id: '.groupmenu'
-                                        })
-                                    }
-                                ],
-                                messageParamsJson: ''
+                            body: { text: '📋 Bot Menu' },
+                            footer: { text: 'Select a category' },
+                            carouselMessage: {
+                                cards: [card]
                             }
                         }
                     }
                 }
             }, { quoted: msg });
 
-            // Debug: Log the message structure
-            console.log('Message structure:', JSON.stringify(message.message, null, 2));
+            // Send the message
+            const sentMsg = await sock.relayMessage(from, message.message, { messageId: message.key.id });
             
-            await sock.relayMessage(from, message.message, { messageId: message.key.id });
-
-            console.log(`📱 Menu with buttons sent to ${from}`);
+            console.log(`📱 Menu sent to ${from}`);
+            console.log(`Message ID: ${message.key.id}`);
+            console.log(`Sent status:`, sentMsg ? 'Success' : 'Failed');
 
         } catch (error) {
             console.error('❌ Button menu failed:', error);
@@ -118,3 +126,8 @@ Select a category below:`;
         }
     }
 };
+
+// ============================================
+// Sub-menu handlers
+// ============================================
+
