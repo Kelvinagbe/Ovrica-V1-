@@ -1,7 +1,7 @@
 const { generateWAMessageContent, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
 
 module.exports = {
-    name: 'ownermenu',
+    name: 'Owner Menu',
     admin: true,
     description: 'Owner commands',
     
