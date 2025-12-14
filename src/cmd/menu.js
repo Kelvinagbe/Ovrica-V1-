@@ -37,7 +37,7 @@ Select a category below:`;
                 body: {
                     text: menuText
                 },
-                footer: { text: "© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏" },
+                footer: { text: " powered by Kelvin " },
                 nativeFlowMessage: {
                     buttons: [
                         {
