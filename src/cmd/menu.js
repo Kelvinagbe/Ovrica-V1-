@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { generateWAMessageFromContent } = require('@whiskeysockets/baileys');
 
 module.exports = {
     name: 'menu',
@@ -8,7 +9,7 @@ module.exports = {
 
     exec: async (sock, from, args, msg, isAdmin, sendWithTyping) => {
         try {
-            // Simple menu text
+            // Menu text
             const menuText = `╭━━━━『 🤖 BOT MENU 』━━━━╮
 │
 │ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
@@ -16,56 +17,91 @@ module.exports = {
 │ *Version:* 1.0.0
 │ *Prefix:* /
 │ *Mode:* Public
+│ *Commands:* 2550+
 │
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
-Select a menu category below:`;
-
-            // Create buttons
-            const buttons = [
-                {
-                    buttonId: 'ownermenu',
-                    buttonText: { displayText: '👤 Owner Menu' },
-                    type: 1
-                },
-                {
-                    buttonId: 'mainmenu',
-                    buttonText: { displayText: '📋 Main Menu' },
-                    type: 1
-                },
-                {
-                    buttonId: 'groupmenu',
-                    buttonText: { displayText: '👥 Group Menu' },
-                    type: 1
-                }
-            ];
+Select a category to view commands:`;
 
             // Image path
             const imagePath = path.join(__dirname, '../../assets/app.png');
-            
-            // Send message with buttons
+            let imageMessage = null;
+
+            // Load image if exists
             if (fs.existsSync(imagePath)) {
-                await sock.sendMessage(from, {
-                    image: fs.readFileSync(imagePath),
-                    caption: menuText,
-                    footer: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
-                    buttons: buttons,
-                    headerType: 4
-                }, { quoted: msg });
-            } else {
-                await sock.sendMessage(from, {
-                    text: menuText,
-                    footer: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏',
-                    buttons: buttons,
-                    headerType: 1
-                }, { quoted: msg });
+                const { generateWAMessageContent } = require('@whiskeysockets/baileys');
+                imageMessage = (await generateWAMessageContent(
+                    { image: fs.readFileSync(imagePath) },
+                    { upload: sock.waUploadToServer }
+                )).imageMessage;
             }
+
+            // Create interactive message
+            const message = generateWAMessageFromContent(from, {
+                viewOnceMessage: {
+                    message: {
+                        messageContextInfo: {
+                            deviceListMetadata: {},
+                            deviceListMetadataVersion: 2
+                        },
+                        interactiveMessage: {
+                            header: imageMessage ? {
+                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu',
+                                hasMediaAttachment: true,
+                                imageMessage: imageMessage
+                            } : {
+                                title: '🤖 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 Menu'
+                            },
+                            body: { text: menuText },
+                            footer: { text: '© 2024 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏 | Powered by Keith API' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: "quick_reply",
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: "👤 Owner Menu",
+                                            id: ".ownermenu"
+                                        })
+                                    },
+                                    {
+                                        name: "quick_reply",
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: "📋 Main Menu",
+                                            id: ".mainmenu"
+                                        })
+                                    },
+                                    {
+                                        name: "quick_reply",
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: "👥 Group Menu",
+                                            id: ".groupmenu"
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }, { quoted: msg });
+
+            await sock.relayMessage(from, message.message, { messageId: message.key.id });
 
             console.log(`📱 Menu sent to ${from}`);
 
         } catch (error) {
             console.error('❌ Menu error:', error);
-            await sendWithTyping(sock, from, '❌ Failed to load menu!');
+            // Fallback to simple text
+            await sendWithTyping(sock, from, `╭━━━━『 🤖 BOT MENU 』━━━━╮
+│
+│ *Bot Name:* 𝐎𝐕𝐑𝐈𝐂𝐀_𝐕𝟏
+│ *Owner:* KELVIN AGBE
+│
+│ *Quick Commands:*
+│ • .ownermenu - Owner commands
+│ • .mainmenu - Main commands
+│ • .groupmenu - Group commands
+│
+╰━━━━━━━━━━━━━━━━━━━━╯`);
         }
     }
 };
