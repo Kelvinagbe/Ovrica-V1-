@@ -41,24 +41,24 @@ Select a category below:`;
                 nativeFlowMessage: {
                     buttons: [
                         {
-                            name: "cta_copy",
+                            name: "quick_reply",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "👤 Owner Menu",
-                                copy_code: "/ownermenu"
+                                id: ".ownermenu"
                             })
                         },
                         {
-                            name: "cta_copy",
+                            name: "quick_reply",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "📋 Main Menu",
-                                copy_code: "/mainmenu"
+                                id: ".mainmenu"
                             })
                         },
                         {
-                            name: "cta_copy",
+                            name: "quick_reply",
                             buttonParamsJson: JSON.stringify({
                                 display_text: "👥 Group Menu",
-                                copy_code: "/groupmenu"
+                                id: ".groupmenu"
                             })
                         }
                     ]
@@ -73,8 +73,8 @@ Select a category below:`;
                             deviceListMetadataVersion: 2
                         },
                         interactiveMessage: {
-                            body: { text: `🤖 ${menuText.split('\n')[0]}` },
-                            footer: { text: `Select a menu option` },
+                            body: { text: "🤖 Bot Menu" },
+                            footer: { text: "Select an option" },
                             carouselMessage: { cards: [card] }
                         }
                     }
