@@ -49,21 +49,21 @@ Select a category below:`;
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '👤 Owner Menu',
-                                id: '.ownermenu'
+                                id: '/ownermenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '📋 Main Menu',
-                                id: '.mainmenu'
+                                id: '/mainmenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '👥 Group Menu',
-                                id: '.groupmenu'
+                                id: '/groupmenu'
                             })
                         }
                     ]
