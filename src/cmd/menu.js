@@ -49,21 +49,21 @@ Select a category below:`;
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '👤 Owner Menu',
-                                id: '/ownermenu'
+                                id: '.ownermenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '📋 Main Menu',
-                                id: '/mainmenu'
+                                id: '.mainmenu'
                             })
                         },
                         {
                             name: 'quick_reply',
                             buttonParamsJson: JSON.stringify({
                                 display_text: '👥 Group Menu',
-                                id: '/groupmenu'
+                                id: '.groupmenu'
                             })
                         }
                     ]
@@ -86,8 +86,10 @@ Select a category below:`;
                 }
             }, { quoted: msg });
 
-            await sock.relayMessage(from, message.message, { messageId: message.key.id });
-            console.log(`📱 Menu sent to ${from}`);
+            await sock.relayMessage(from, message.message, { 
+                messageId: message.key.id,
+                participant: { jid: from }
+            });
 
         } catch (error) {
             console.error('❌ Menu error:', error);
