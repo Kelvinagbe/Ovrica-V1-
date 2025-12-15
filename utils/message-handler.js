@@ -19,6 +19,11 @@ try {
     statusViewed = new Set();
 }
 
+// Initialize global download sessions storage
+if (!global.pendingDownloads) {
+    global.pendingDownloads = {};
+}
+
 function isOwnerMessage(msg, sock, CONFIG) {
     try {
         if (msg.key.fromMe === true) return true;
@@ -84,7 +89,7 @@ function checkIfShouldRespondWithAI(msg, from, isGroup, sock) {
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
         if (contextInfo?.fromMe === true) return true;
         if (contextInfo?.participant && getCleanNumber(contextInfo.participant) === botNumber) return true;
-        
+
         const messageText = textCache.get(msg);
         if (messageText?.includes(`@${botNumber}`)) return true;
         return false;
@@ -120,6 +125,54 @@ async function handleTxt2ImgSession(sock, from, msg, text, userName) {
         }
     } catch {}
     return false;
+}
+
+async function handleYouTubeDownloadSession(sock, from, msg, text, commands) {
+    try {
+        if (!text || !/^[12]$/.test(text.trim())) return false;
+        
+        // Check if there's a pending download session
+        if (!global.pendingDownloads || !global.pendingDownloads[from]) return false;
+        
+        const download = global.pendingDownloads[from];
+        
+        // Check if session expired (5 minutes)
+        if (Date.now() - download.timestamp > 300000) {
+            await sock.sendMessage(from, {
+                text: '❌ Download session expired. Please search again.'
+            }, { quoted: msg });
+            delete global.pendingDownloads[from];
+            return true;
+        }
+        
+        const choice = text.trim();
+        
+        if (choice === '1') {
+            // Download audio
+            const playCommand = commands['play'];
+            if (playCommand) {
+                await playCommand.exec(sock, from, [download.url], msg, false, async (s, f, content) => {
+                    await sock.sendMessage(f, typeof content === 'string' ? { text: content } : content);
+                });
+            }
+        } else if (choice === '2') {
+            // Download video
+            const videoCommand = commands['video'];
+            if (videoCommand) {
+                await videoCommand.exec(sock, from, [download.url], msg, false, async (s, f, content) => {
+                    await sock.sendMessage(f, typeof content === 'string' ? { text: content } : content);
+                });
+            }
+        }
+        
+        // Clean up session
+        delete global.pendingDownloads[from];
+        return true;
+        
+    } catch (error) {
+        console.error('YouTube download session error:', error);
+        return false;
+    }
 }
 
 async function handleSongSelection(sock, from, msg, text, commands) {
@@ -158,7 +211,12 @@ async function executeCommand(sock, from, text, msg, isAdminUser, isOwner, CONFI
             return;
         }
 
-        await cmd.exec(sock, from, args, msg, isAdminUser || isOwner);
+        // Create sendWithTyping helper function
+        const sendWithTyping = async (s, f, content) => {
+            await sock.sendMessage(f, typeof content === 'string' ? { text: content } : content);
+        };
+
+        await cmd.exec(sock, from, args, msg, isAdminUser || isOwner, sendWithTyping);
     } catch (error) {
         if (CONFIG.logErrors) console.error(`❌ Command error [${commandPrefix}${command}]:`, error.message);
         sock.sendMessage(from, {
@@ -219,7 +277,9 @@ async function handleMessage(messages, sock, CONFIG, commands) {
             return;
         }
 
+        // Handle numeric replies for sessions (order matters!)
         if (await handleTxt2ImgSession(sock, from, msg, text, getUserName(msg))) return;
+        if (await handleYouTubeDownloadSession(sock, from, msg, text, commands)) return;
         if (await handleSongSelection(sock, from, msg, text, commands)) return;
 
         if (text && !isOwner && checkIfShouldRespondWithAI(msg, from, isGroup, sock)) {
