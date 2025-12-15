@@ -53,88 +53,47 @@ module.exports = {
                 `⏱️ *Duration:* ${duration}\n` +
                 `👁️ *Views:* ${views}\n` +
                 `🔗 *URL:* ${video.url}\n\n` +
-                `📥 *Choose download option below:*`;
+                `📥 *Download Options:*\n` +
+                `• Reply "1" for Audio 🎵\n` +
+                `• Reply "2" for Video 🎥`;
 
-            // Create interactive buttons
-            const buttons = [
-                {
-                    name: "quick_reply",
-                    buttonParamsJson: JSON.stringify({
-                        display_text: "🎵 Download Audio",
-                        id: `.play ${video.url}`
-                    })
-                },
-                {
-                    name: "quick_reply",
-                    buttonParamsJson: JSON.stringify({
-                        display_text: "🎥 Download Video",
-                        id: `.video ${video.url}`
-                    })
-                },
-                {
-                    name: "cta_url",
-                    buttonParamsJson: JSON.stringify({
-                        display_text: "▶️ Watch on YouTube",
-                        url: video.url,
-                        merchant_url: video.url
-                    })
-                }
-            ];
-
-            const interactiveMessage = {
-                body: { text: caption },
-                footer: { text: "Powered by Keith API" },
-                header: {
-                    title: "YouTube Search Result",
-                    hasMediaAttachment: true,
-                    imageMessage: await sock.prepareMessage(from, {
-                        image: { url: video.thumbnail }
-                    }, { upload: sock.waUploadToServer }).then(prep => prep.message.imageMessage)
-                },
-                nativeFlowMessage: {
-                    buttons: buttons
-                }
-            };
-
-            await sock.sendMessage(from, {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: interactiveMessage
+            // Send with thumbnail and buttons
+            const sentMsg = await sock.sendMessage(from, {
+                image: { url: video.thumbnail },
+                caption: caption,
+                contextInfo: {
+                    externalAdReply: {
+                        title: video.title,
+                        body: `${channel} • ${duration}`,
+                        thumbnailUrl: video.thumbnail,
+                        sourceUrl: video.url,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
                     }
                 }
             }, { quoted: msg });
 
+            // Store the video info temporarily for button responses
+            // You can use a simple in-memory store or database
+            global.pendingDownloads = global.pendingDownloads || {};
+            global.pendingDownloads[from] = {
+                url: video.url,
+                title: video.title,
+                thumbnail: video.thumbnail,
+                videoId: videoId,
+                timestamp: Date.now()
+            };
+
+            // Clean up after 5 minutes
+            setTimeout(() => {
+                if (global.pendingDownloads[from]) {
+                    delete global.pendingDownloads[from];
+                }
+            }, 300000);
+
         } catch (error) {
             console.error("YouTube search error:", error);
-            
-            // Fallback to simple message if interactive buttons fail
-            if (error.message.includes('interactive')) {
-                try {
-                    const searchResponse = await axios.get(`https://apiskeith.vercel.app/search/yts?query=${encodeURIComponent(query)}`);
-                    const video = searchResponse.data?.result?.[0];
-                    
-                    if (video) {
-                        const caption = 
-                            `🎵 *${video.title}*\n\n` +
-                            `👤 Channel: ${video.author?.name || 'Unknown'}\n` +
-                            `⏱️ Duration: ${video.timestamp || 'N/A'}\n` +
-                            `👁️ Views: ${video.views || 'N/A'}\n\n` +
-                            `🔗 ${video.url}\n\n` +
-                            `📥 *Download:*\n` +
-                            `• Audio: /play ${video.url}\n` +
-                            `• Video: /video ${video.url}`;
-
-                        await sock.sendMessage(from, {
-                            image: { url: video.thumbnail },
-                            caption: caption
-                        }, { quoted: msg });
-                    }
-                } catch (fallbackError) {
-                    await sendWithTyping(sock, from, `❌ Error: ${error.message}`);
-                }
-            } else {
-                await sendWithTyping(sock, from, `❌ Error: ${error.message}`);
-            }
+            await sendWithTyping(sock, from, `❌ Error: ${error.message}`);
         }
     }
 };
