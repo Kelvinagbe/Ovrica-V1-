@@ -9,7 +9,7 @@ module.exports = {
         try {
             // Extract quoted message with multiple fallbacks
             let quotedNode = null;
-            
+
             if (msg.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
                 quotedNode = msg.message.extendedTextMessage.contextInfo.quotedMessage;
             } else if (msg.quoted) {
@@ -18,17 +18,7 @@ module.exports = {
 
             if (!quotedNode) {
                 return await sock.sendMessage(from, {
-                    text: `┌ ❏ *⌜ VIEW ONCE REVEALER ⌟* ❏\n` +
-                        `│\n` +
-                        `├◆ 👀 *How to use:*\n` +
-                        `├◆ 1. Reply to view once photo/video\n` +
-                        `├◆ 2. Type: /vv\n` +
-                        `├◆ 3. Bot reveals it!\n` +
-                        `│\n` +
-                        `├◆ ⚠️ Don't open before using /vv\n` +
-                        `│\n` +
-                        `└ ❏\n` +
-                        `> Powered by 🎭Kelvin🎭`
+                    text: `❌ Reply to a view once message to reveal it`
                 }, { quoted: msg });
             }
 
@@ -61,15 +51,7 @@ module.exports = {
 
             if (!innerNode) {
                 return await sock.sendMessage(from, {
-                    text: `❌ *Not a view once message!*\n\n` +
-                        `This appears to be a regular message.\n\n` +
-                        `📝 View once messages have a special icon:\n` +
-                        `• 1️⃣ with a circle around it\n` +
-                        `• Says "View once" when you receive it\n\n` +
-                        `💡 Make sure you:\n` +
-                        `• Reply to actual view once photo/video\n` +
-                        `• Haven't opened it yet\n` +
-                        `• Don't forward, use reply button`
+                    text: `❌ Not a view once message`
                 }, { quoted: msg });
             }
 
@@ -85,31 +67,18 @@ module.exports = {
 
             if (!mediaType) {
                 return await sock.sendMessage(from, {
-                    text: `❌ *Unsupported view once type!*\n\n` +
-                        `✅ Supported:\n` +
-                        `• View once photos\n` +
-                        `• View once videos\n\n` +
-                        `❌ Not supported:\n` +
-                        `• Other media types`
+                    text: `❌ Unsupported media type`
                 }, { quoted: msg });
             }
 
-            // Get sender info
-            const contextInfo = msg.message.extendedTextMessage.contextInfo;
-            const sender = contextInfo.participant || from;
-            const senderNumber = sender.split('@')[0];
-            const senderName = msg.pushName || 'Unknown';
-
             // Send processing message
             await sock.sendMessage(from, {
-                text: `⏳ *Revealing view once ${mediaType}...*\n\n` +
-                    `👤 From: ${senderName}\n` +
-                    `📱 Number: +${senderNumber}`
+                text: `⏳ Revealing...`
             }, { quoted: msg });
 
             // Download media using streams (more reliable)
             let buffer = null;
-            
+
             try {
                 const stream = await downloadContentFromMessage(innerNode, mediaType);
                 let tmp = Buffer.from([]);
@@ -126,36 +95,18 @@ module.exports = {
                 throw new Error("Downloaded media is empty");
             }
 
-            const sizeKB = (buffer.length / 1024).toFixed(2);
             const originalCaption = innerNode.caption || '';
-
-            // Build reveal message
-            const caption = 
-                `┌ ❏ *⌜ VIEW ONCE REVEALED ⌟* ❏\n` +
-                `│\n` +
-                `├◆ 👀 *Successfully Revealed!*\n` +
-                `├◆ 📝 *Type:* ${mediaType.toUpperCase()}\n` +
-                `├◆ 👤 *From:* ${senderName}\n` +
-                `├◆ 📱 *Number:* +${senderNumber}\n` +
-                `├◆ 📦 *Size:* ${sizeKB} KB\n` +
-                (originalCaption ? `├◆ 💬 *Caption:* ${originalCaption}\n` : '') +
-                `├◆ 🕐 *Time:* ${new Date().toLocaleTimeString('en-US', { hour12: true })}\n` +
-                `│\n` +
-                `├◆ ✅ Here's what they sent!\n` +
-                `│\n` +
-                `└ ❏\n` +
-                `> Powered by 🎭Kelvin🎭`;
 
             // Send the revealed media
             if (mediaType === 'image') {
                 await sock.sendMessage(from, {
                     image: buffer,
-                    caption: caption
+                    caption: originalCaption ? `✅ Revealed\n\n${originalCaption}` : '✅ Revealed'
                 });
             } else if (mediaType === 'video') {
                 await sock.sendMessage(from, {
                     video: buffer,
-                    caption: caption,
+                    caption: originalCaption ? `✅ Revealed\n\n${originalCaption}` : '✅ Revealed',
                     gifPlayback: innerNode.gifPlayback || false
                 });
             } else if (mediaType === 'audio') {
@@ -164,41 +115,24 @@ module.exports = {
                     mimetype: innerNode.mimetype || "audio/mp4",
                     ptt: innerNode.ptt || false
                 });
+                await sock.sendMessage(from, {
+                    text: '✅ Revealed'
+                });
             }
 
         } catch (error) {
-            let errorMsg = error.message;
-            let errorSolution = 'Try again';
+            let errorMsg = 'Failed to reveal';
 
             if (error.message.includes('download') || error.message.includes('404')) {
-                errorMsg = 'Media download failed';
-                errorSolution = 'View once was already opened or expired';
+                errorMsg = 'View once already opened or expired';
             } else if (error.message.includes('400')) {
-                errorMsg = 'Invalid message';
-                errorSolution = 'Not a valid view once message';
+                errorMsg = 'Invalid view once message';
             } else if (error.message.includes('decrypt')) {
-                errorMsg = 'Decryption failed';
-                errorSolution = 'Message already viewed or corrupted';
+                errorMsg = 'Message already viewed';
             }
 
             await sock.sendMessage(from, {
-                text: `┌ ❏ *⌜ ERROR ⌟* ❏\n` +
-                    `│\n` +
-                    `├◆ ❌ *Failed to reveal*\n` +
-                    `├◆ 📝 *Error:* ${errorMsg}\n` +
-                    `├◆ 💡 *Solution:* ${errorSolution}\n` +
-                    `│\n` +
-                    `├◆ 🔧 *Reasons:*\n` +
-                    `├◆    • Already opened (most common)\n` +
-                    `├◆    • Message expired (>14 days)\n` +
-                    `├◆    • Not a view once message\n` +
-                    `├◆    • Corrupted/deleted media\n` +
-                    `│\n` +
-                    `├◆ 💡 *Tip:*\n` +
-                    `├◆    Reply BEFORE opening it!\n` +
-                    `│\n` +
-                    `└ ❏\n` +
-                    `> Powered by 🎭Kelvin🎭`
+                text: `❌ ${errorMsg}`
             }, { quoted: msg });
         }
     }
